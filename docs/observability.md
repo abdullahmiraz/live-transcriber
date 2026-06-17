@@ -27,8 +27,9 @@ Exposed at `GET /metrics`. Core metrics:
 | `ws_connections_active` | gauge | — |
 | `http_request_duration_seconds` | histogram | `route`, `method`, `status` |
 | `http_requests_total` | counter | `route`, `method`, `status` |
-| `errors_total` | counter | `component` |
+| `errors_total` | counter | `component` (incl. `chat`) |
 | `transcription_latency_seconds` | histogram | `provider` |
+| `chat_messages_total` | counter | — |
 
 Implementation: `prometheus/client_golang` with a middleware that records duration/count
 per route, plus gauges updated by the room registry and WS hub.

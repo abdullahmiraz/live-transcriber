@@ -4,18 +4,20 @@ import "sync"
 
 // Room is a single meeting's set of connected clients with fan-out helpers.
 type Room struct {
-	slug string
-	hub  *Hub
+	slug      string
+	meetingID string
+	hub       *Hub
 
 	mu      sync.RWMutex
 	clients map[string]*Client
 }
 
-func newRoom(slug string, hub *Hub) *Room {
+func newRoom(slug, meetingID string, hub *Hub) *Room {
 	return &Room{
-		slug:    slug,
-		hub:     hub,
-		clients: make(map[string]*Client),
+		slug:      slug,
+		meetingID: meetingID,
+		hub:       hub,
+		clients:   make(map[string]*Client),
 	}
 }
 

@@ -2,8 +2,11 @@
 
 ## Must know
 - PostgreSQL, schema in `docs/database-design.md`, migrations in `backend/migrations/`.
-- Tables: `meetings`, `participants`, `transcript_segments`.
+- Tables: `meetings`, `participants`, `transcript_segments`, `messages` (chat).
+- PostgreSQL is the source of truth; Redis holds only realtime/ephemeral data.
 - UUID PKs, `timestamptz`, unguessable `slug` for public ids.
+- `messages` indexed `(meeting_id, created_at DESC, id DESC)` for chronological + keyset
+  pagination.
 
 ## Responsibilities
 - Author forward + (where sensible) reversible SQL migrations.

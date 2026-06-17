@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"meetingplatform/internal/chat"
 )
 
 const (
@@ -125,8 +128,50 @@ func (c *Client) handle(env Envelope) {
 		c.relaySignal(env)
 	case TypeSpeechReceived:
 		c.handleSpeech(env)
+	case TypeChatMessage:
+		c.handleChat(env)
 	default:
 		c.sendError("unknown_type", "unsupported message type: "+env.Type)
+	}
+}
+
+// handleChat validates, persists, and publishes a chat message. Delivery back to clients
+// (including the sender) happens via the broker subscription in Hub.Run, so multiple
+// backend instances stay consistent.
+func (c *Client) handleChat(env Envelope) {
+	var p ChatMessagePayload
+	if err := json.Unmarshal(env.Payload, &p); err != nil {
+		c.sendError("bad_payload", "invalid chat.message payload")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := c.hub.chat.Send(ctx, chat.SendInput{
+		MeetingID:  c.room.meetingID,
+		Slug:       c.room.slug,
+		SenderID:   c.id,
+		SenderName: c.name,
+		Content:    p.Content,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, chat.ErrEmptyContent):
+			c.sendError("empty_message", "message content is empty")
+		case errors.Is(err, chat.ErrContentTooLong):
+			c.sendError("message_too_long", "message content too long")
+		default:
+			c.hub.logger.Error("chat send failed", "error", err, "meeting_id", c.room.slug)
+			if c.hub.metrics != nil {
+				c.hub.metrics.ErrorsTotal.WithLabelValues("chat").Inc()
+			}
+			c.sendError("chat_failed", "could not send message")
+		}
+		return
+	}
+	if c.hub.metrics != nil {
+		c.hub.metrics.ChatMessagesTotal.Inc()
 	}
 }
 

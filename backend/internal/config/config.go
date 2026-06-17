@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Port                string
 	DatabaseURL         string
+	RedisURL            string
 	LogLevel            string
 	CORSOrigins         []string
 	PublicBaseURL       string
@@ -25,6 +26,7 @@ func Load() Config {
 	return Config{
 		Port:                env("PORT", "8080"),
 		DatabaseURL:         env("DATABASE_URL", "postgres://meetuser:meetpass@localhost:5432/meetings?sslmode=disable"),
+		RedisURL:            env("REDIS_URL", ""),
 		LogLevel:            env("LOG_LEVEL", "info"),
 		CORSOrigins:         splitCSV(env("CORS_ORIGINS", "http://localhost")),
 		PublicBaseURL:       env("PUBLIC_BASE_URL", "http://localhost"),

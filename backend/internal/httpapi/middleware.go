@@ -2,6 +2,9 @@
 package httpapi
 
 import (
+	"bufio"
+	"errors"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -18,6 +21,15 @@ type statusRecorder struct {
 func (s *statusRecorder) WriteHeader(code int) {
 	s.status = code
 	s.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack delegates to the underlying ResponseWriter so WebSocket upgrades work even when
+// the request passes through this wrapping middleware.
+func (s *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := s.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
 }
 
 // chain applies middlewares in order (outermost first).

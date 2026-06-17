@@ -64,23 +64,31 @@ flowchart LR
 
 ## 4. Component Responsibilities
 
-### Frontend (SvelteKit + TypeScript)
+### Frontend (SvelteKit + TypeScript + Tailwind + shadcn-svelte)
+- UI built with **Tailwind CSS v4** and **shadcn-svelte** components (Slack/Linear-style).
 - Meeting lobby + room UI, device selection (camera/mic).
 - WebRTC client: getUserMedia, peer connection lifecycle, mesh negotiation.
-- WebSocket client: signaling + realtime events (participants, captions).
+- WebSocket client: signaling + realtime events (participants, captions, chat).
 - Captions display: original transcript + translated subtitles.
+- **Realtime text chat** panel (history via REST, live via WebSocket).
 - Captures audio and streams short chunks for transcription.
 
 ### Backend (Go)
-- **HTTP API**: meetings CRUD, health, readiness, metrics.
-- **WS hub**: per-room hubs, fan-out events, signaling relay.
+- **HTTP API**: meetings CRUD, chat history (paginated), health, readiness, metrics.
+- **WS hub**: per-room fan-out, signaling relay, chat + AI events.
+- **Chat service**: validate → persist (PostgreSQL) → publish (Redis pub/sub).
 - **STT service**: interface + pluggable provider adapters.
 - **Translation service**: interface + pluggable provider adapters.
 - **Auth-ready**: structure supports adding auth later (middleware, user context) without rewrites.
 
-### Database (PostgreSQL)
-- Meetings, participants, transcript/translation segments (optional persistence).
+### Database (PostgreSQL) — source of truth
+- Meetings, participants, transcript/translation segments, **chat messages** (permanent).
 - Migrations, indexing, relational integrity.
+
+### Redis — realtime layer (not permanent storage)
+- Pub/sub fan-out for chat across backend instances; ephemeral connection/session state.
+- Channel convention `room:{slug}`; the hub pattern-subscribes `room:*`.
+- Locally (no Redis), an in-memory broker with the same interface is used.
 
 ### Nginx
 - Reverse proxy for frontend + backend, WebSocket upgrade pass-through.
@@ -93,21 +101,23 @@ backend/
   cmd/server/            # entrypoint (main.go)
   internal/
     config/              # env-driven config
-    http/                # router, handlers, middleware (transport layer)
-    ws/                  # websocket hub, client, signaling
+    httpapi/             # router, handlers, middleware (transport layer)
+    ws/                  # websocket hub, client, signaling, chat dispatch
     meeting/             # domain: service + repository interface
+    chat/                # domain: chat service + repository interface
     transcription/       # STT provider interface + adapters
     translation/         # translation provider interface + adapters
+    pubsub/              # broker interface + Redis + in-memory implementations
     storage/postgres/    # repository implementations + db pool
     observability/       # logger, metrics, tracing
     platform/            # shared utils (ids, httputil)
   migrations/            # SQL migrations
 ```
 
-Dependency rule: `http`/`ws` (transport) → domain services (`meeting`, `transcription`,
-`translation`) → repository interfaces. Implementations (`storage/postgres`,
-provider adapters) are injected at composition root (`cmd/server`). Domain code never
-imports transport or concrete infrastructure.
+Dependency rule: `httpapi`/`ws` (transport) → domain services (`meeting`, `chat`,
+`transcription`, `translation`) → repository/broker interfaces. Implementations
+(`storage/postgres`, `pubsub`, provider adapters) are injected at the composition root
+(`cmd/server`). Domain code never imports transport or concrete infrastructure.
 
 ## 6. Realtime Media (WebRTC) — MVP Decision
 
@@ -156,14 +166,42 @@ flowchart LR
 - Both providers sit behind interfaces (`transcription.Provider`, `translation.Provider`)
   so we can swap implementations without touching the hub.
 
+## 7.5 Realtime Chat (text-only)
+
+Clean separation: **PostgreSQL is the source of truth; Redis is the realtime transport.**
+
+```mermaid
+flowchart LR
+    U[User types message] --> FE[SvelteKit chat panel]
+    FE -->|WS chat.message| HUB[Go WS hub]
+    HUB --> SVC[chat.Service]
+    SVC -->|persist| PG[(PostgreSQL messages)]
+    SVC -->|publish room:slug| RED[(Redis Pub/Sub)]
+    RED --> SUB[Hub subscriber room:*]
+    SUB -->|WS chat.new| FE2[All participants]
+```
+
+- A client sends `chat.message` over WS; the server stamps the sender identity.
+- `chat.Service` validates (non-empty, ≤4000 chars), **persists to PostgreSQL**, then
+  **publishes** the message to Redis channel `room:{slug}`.
+- The hub pattern-subscribes `room:*`; on receipt it fans the `chat.new` envelope out to
+  all locally-connected clients — including the sender's instance. No instance broadcasts
+  locally on send, so delivery is consistent across multiple backend instances and there is
+  no double-delivery.
+- History loads via REST (`GET /api/meetings/{slug}/messages`, keyset paginated); live
+  messages arrive via WebSocket. No attachments/files — text only.
+- Locally (no Redis) an in-memory broker with the same `pubsub.Broker` interface is used,
+  so `go run` works without Redis while containers use Redis.
+
 ## 8. Scale Considerations ("100k users")
 
 | Concern | MVP approach | Scale path |
 |---|---|---|
 | Media | WebRTC mesh | SFU (Pion/LiveKit) |
-| WS fan-out | in-process room hubs | Redis pub/sub or NATS across instances |
+| Chat fan-out | **Redis pub/sub** (`room:*`) | already multi-instance ready; NATS if needed |
+| Signaling/presence fan-out | in-process room hubs | move onto Redis/NATS like chat |
 | Sessions/state | in-memory room registry | external store (Redis) |
-| DB | single Postgres | read replicas, partition transcripts |
+| DB | single Postgres | read replicas, partition transcripts + messages |
 | STT cost/latency | single provider | provider routing + batching/streaming |
 | Stateless API | yes | horizontal scaling behind nginx/LB |
 

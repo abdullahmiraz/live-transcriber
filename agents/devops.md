@@ -2,8 +2,11 @@
 
 ## Must know
 - Everything runs via `docker compose up` (see `docs/docker-architecture.md`).
-- Services: nginx, frontend, backend, postgres. Monitoring overlay added in Phase 5.
+- Services: nginx, frontend, backend, postgres, **redis**. Monitoring overlay in Phase 5.
 - nginx is the single entry: `/` → frontend, `/api` + `/ws` + health → backend.
+- **Only nginx publishes a port.** postgres and redis are private (no `ports:`).
+- Data safety: `postgres_data` and `redis_data` named volumes must persist data across
+  restart/rebuild/crash (redis runs `--appendonly yes`).
 
 ## Responsibilities
 - Maintain `docker-compose.yml`, per-service multi-stage Dockerfiles, nginx config.

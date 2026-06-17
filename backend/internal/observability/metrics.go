@@ -16,6 +16,7 @@ type Metrics struct {
 	HTTPRequestDuration  *prometheus.HistogramVec
 	ErrorsTotal          *prometheus.CounterVec
 	TranscriptionLatency *prometheus.HistogramVec
+	ChatMessagesTotal    prometheus.Counter
 }
 
 // NewMetrics creates and registers all collectors on a fresh registry.
@@ -55,5 +56,9 @@ func NewMetrics() *Metrics {
 			Help:    "End-to-end transcription latency in seconds.",
 			Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10},
 		}, []string{"provider"}),
+		ChatMessagesTotal: factory.NewCounter(prometheus.CounterOpts{
+			Name: "chat_messages_total",
+			Help: "Total chat messages sent.",
+		}),
 	}
 }

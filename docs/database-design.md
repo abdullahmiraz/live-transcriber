@@ -15,7 +15,7 @@
 erDiagram
     MEETINGS ||--o{ PARTICIPANTS : has
     MEETINGS ||--o{ TRANSCRIPT_SEGMENTS : has
-    PARTICIPANTS ||--o{ TRANSCRIPT_SEGMENTS : speaks
+    MEETINGS ||--o{ MESSAGES : has
 
     MEETINGS {
         uuid id PK
@@ -25,6 +25,14 @@ erDiagram
         text status
         timestamptz created_at
         timestamptz ended_at
+    }
+    MESSAGES {
+        uuid id PK
+        uuid meeting_id FK
+        text sender_id
+        text sender_name
+        text content
+        timestamptz created_at
     }
     PARTICIPANTS {
         uuid id PK
@@ -89,8 +97,25 @@ Indexes: index on `meeting_id`.
 
 Indexes: index on `(meeting_id, created_at)`.
 
+### `messages` (chat — source of truth, migration 0002)
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | `gen_random_uuid()` |
+| meeting_id | uuid FK → meetings(id) ON DELETE CASCADE | |
+| sender_id | text NOT NULL | ephemeral WS participant id (pre-auth) |
+| sender_name | text NOT NULL | display name (pre-auth; no users table yet) |
+| content | text NOT NULL | message body, text-only (≤4000 chars enforced in app) |
+| created_at | timestamptz NOT NULL | default `now()` |
+
+Indexes: `(meeting_id, created_at DESC, id DESC)` — optimized for chronological reads and
+keyset pagination (newest page first, then reversed for display).
+
+> Note: `sender_id`/`sender_name` are denormalized text fields for the pre-auth MVP (no
+> users table). When auth lands, add a `user_id` FK and migrate display names.
+
 ## Scale Notes
-- `transcript_segments` is the high-volume table → partition by `created_at` (monthly)
-  or by `meeting_id` hash when volume grows.
+- `transcript_segments` and `messages` are the high-volume tables → partition by
+  `created_at` (monthly) or by `meeting_id` hash when volume grows.
 - Keep transactional API tables (`meetings`, `participants`) lean for fast reads.
 - Add read replicas before sharding.
+- Redis holds only realtime/ephemeral data (pub/sub) — never the chat source of truth.
