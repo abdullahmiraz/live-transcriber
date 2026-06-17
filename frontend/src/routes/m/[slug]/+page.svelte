@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { getMeeting, listMessages, type ChatMessage } from '$lib/api';
 	import { SignalingClient } from '$lib/realtime/signaling';
 	import { MeshManager } from '$lib/realtime/webrtc';
@@ -14,11 +15,17 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Select from '$lib/components/ui/select';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import Chat from '$lib/components/Chat.svelte';
+	import AppHeader from '$lib/components/layout/AppHeader.svelte';
+	import BrandLogo from '$lib/components/layout/BrandLogo.svelte';
+	import ThemeToggle from '$lib/components/layout/ThemeToggle.svelte';
 	import { toast } from 'svelte-sonner';
 	import {
 		Mic,
@@ -30,11 +37,16 @@
 		PhoneOff,
 		Copy,
 		Check,
-		Users
+		Users,
+		VideoIcon,
+		Loader2,
+		AlertCircle
 	} from '@lucide/svelte';
 
-	let { data } = $props();
-	const slug: string = $derived(data.slug);
+	type Phase = 'loading' | 'lobby' | 'joining' | 'in-call' | 'error';
+
+	// Slug from the URL — do NOT use load() data (adapter-node SSR sends data: [null,null]).
+	const slug = $derived(String(page.params.slug ?? ''));
 
 	const LANGS = [
 		{ code: 'en-US', label: 'English' },
@@ -49,9 +61,12 @@
 	// reactive UI state
 	let displayName = $state('Guest');
 	let meetingTitle = $state('Meeting');
+	let phase = $state<Phase>('loading');
 	let status = $state<'connecting' | 'open' | 'closed'>('connecting');
 	let loadError = $state('');
+	let mediaError = $state('');
 	let ready = $state(false);
+	let joining = $state(false);
 
 	let micOn = $state(true);
 	let camOn = $state(true);
@@ -79,14 +94,41 @@
 
 	const langLabel = $derived(LANGS.find((l) => l.code === sourceLang)?.label ?? 'English');
 
-	// non-reactive refs
-	let localStream: MediaStream | null = null;
+	// media + realtime (localStream must be $state for lobby preview)
+	let localStream = $state<MediaStream | null>(null);
 	let sig: SignalingClient | null = null;
 	let mesh: MeshManager | null = null;
 	let speech: SpeechCapture | null = null;
 	let localVideoEl: HTMLVideoElement | undefined = $state();
+	let previewVideoEl: HTMLVideoElement | undefined = $state();
 	let selfId = $state('');
 	let seq = 0;
+
+	function mediaErrorMessage(err: unknown): string {
+		const name = err instanceof DOMException ? err.name : '';
+		switch (name) {
+			case 'NotAllowedError':
+			case 'PermissionDeniedError':
+				return 'Camera and microphone access was blocked. Click the lock icon in your browser address bar, allow camera and microphone, then try again.';
+			case 'NotFoundError':
+			case 'DevicesNotFoundError':
+				return 'No camera or microphone was found on this device.';
+			case 'NotReadableError':
+			case 'TrackStartError':
+				return 'Your camera or microphone is in use by another application.';
+			case 'SecurityError':
+				return 'Camera and microphone require a secure connection (HTTPS or localhost).';
+			default:
+				return err instanceof Error ? err.message : 'Could not access camera or microphone.';
+		}
+	}
+
+	async function requestMedia(): Promise<MediaStream> {
+		if (!navigator.mediaDevices?.getUserMedia) {
+			throw new DOMException('Media devices are not available in this browser.', 'NotSupportedError');
+		}
+		return navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+	}
 
 	function utf8ToBase64(s: string): string {
 		return btoa(String.fromCharCode(...new TextEncoder().encode(s)));
@@ -148,38 +190,77 @@
 		speech?.setLang(sourceLang);
 	});
 
+	// Keep preview / in-call video elements in sync with the local stream.
+	$effect(() => {
+		if (localStream && previewVideoEl) previewVideoEl.srcObject = localStream;
+		if (localStream && localVideoEl) localVideoEl.srcObject = localStream;
+	});
+
 	onMount(async () => {
 		speechSupported = SpeechCapture.isSupported();
 		displayName = sessionStorage.getItem('displayName') || 'Guest';
+
+		if (!slug) {
+			loadError = 'Invalid meeting link.';
+			phase = 'error';
+			return;
+		}
 
 		try {
 			const m = await getMeeting(slug);
 			meetingTitle = m.title || 'Meeting';
 			if (m.status === 'ended') {
 				loadError = 'This meeting has already ended.';
+				phase = 'error';
 				return;
 			}
 		} catch (e) {
 			loadError = (e as Error).message || 'Meeting not found.';
+			phase = 'error';
 			return;
 		}
 
-		// Load chat history (chronological) before subscribing to live events.
-		try {
-			const history = await listMessages(slug, { limit: 50 });
-			for (const m of history) addChatMessage(m);
-		} catch {
-			// non-fatal; live chat still works
-		}
+		phase = 'lobby';
+	});
 
-		try {
-			localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-		} catch {
-			loadError = 'Camera and microphone access is required to join this meeting.';
-			return;
-		}
-		ready = true;
-		if (localVideoEl) localVideoEl.srcObject = localStream;
+	function joinMeeting() {
+		if (joining || phase === 'in-call' || !slug) return;
+
+		// Invoke getUserMedia in the same turn as the click — required for the permission prompt.
+		const mediaPromise = requestMedia();
+
+		joining = true;
+		mediaError = '';
+		phase = 'joining';
+
+		sessionStorage.setItem('displayName', displayName.trim() || 'Guest');
+		displayName = displayName.trim() || 'Guest';
+
+		mediaPromise
+			.then(async (stream) => {
+				localStream = stream;
+				try {
+					const history = await listMessages(slug, { limit: 50 });
+					for (const m of history) addChatMessage(m);
+				} catch {
+					// non-fatal
+				}
+				startRealtime();
+				ready = true;
+				phase = 'in-call';
+				joining = false;
+			})
+			.catch((e) => {
+				console.error('getUserMedia failed:', e);
+				mediaError = mediaErrorMessage(e);
+				phase = 'lobby';
+				joining = false;
+				toast.error(mediaError);
+			});
+	}
+
+	function startRealtime() {
+		if (!localStream) return;
 
 		sig = new SignalingClient(slug, displayName);
 		sig.onStatusChange = (s) => (status = s);
@@ -227,7 +308,7 @@
 		});
 
 		sig.connect();
-	});
+	}
 
 	onDestroy(() => {
 		speech?.stop();
@@ -274,21 +355,96 @@
 
 <svelte:head><title>{meetingTitle} · Live Meet</title></svelte:head>
 
-{#if loadError}
+{#if phase === 'loading'}
 	<div class="grid min-h-screen place-items-center p-4">
-		<div class="bg-card w-full max-w-sm rounded-xl border p-8 text-center">
-			<h2 class="text-lg font-semibold">Can’t join the meeting</h2>
-			<p class="text-muted-foreground mt-2 text-sm">{loadError}</p>
-			<Button class="mt-5" onclick={leave}>Back to home</Button>
+		<div class="flex flex-col items-center gap-3 animate-fade-in">
+			<Loader2 class="text-primary size-8 animate-spin" />
+			<p class="text-muted-foreground text-sm font-medium">Loading meeting…</p>
 		</div>
 	</div>
-{:else}
-	<div class="flex h-screen flex-col">
+{:else if phase === 'error'}
+	<div class="mx-auto flex min-h-screen max-w-lg flex-col px-5">
+		<AppHeader />
+		<div class="grid flex-1 place-items-center pb-12">
+			<div class="surface-card w-full max-w-sm p-8 text-center animate-scale-in">
+				<span class="bg-destructive/10 text-destructive mx-auto mb-4 flex size-12 items-center justify-center rounded-full">
+					<AlertCircle class="size-6" />
+				</span>
+				<h2 class="text-lg font-semibold tracking-tight">Can’t join the meeting</h2>
+				<p class="text-muted-foreground mt-2 text-sm leading-relaxed">{loadError}</p>
+				<Button class="mt-6" onclick={leave}>Back to home</Button>
+			</div>
+		</div>
+	</div>
+{:else if phase === 'lobby' || phase === 'joining'}
+	<div class="mx-auto flex min-h-screen max-w-lg flex-col px-5">
+		<AppHeader />
+		<div class="grid flex-1 place-items-center pb-12">
+			<Card.Root class="surface-card w-full animate-scale-in border-0 shadow-none">
+				<Card.Header>
+					<Card.Title class="text-xl">{meetingTitle}</Card.Title>
+					<Card.Description class="leading-relaxed">
+						Check your name, then join. Your browser will ask for camera and microphone access.
+					</Card.Description>
+				</Card.Header>
+				<Card.Content class="grid gap-4">
+					<div class="bg-video-surface relative aspect-video overflow-hidden rounded-xl ring-1 ring-border/60">
+						{#if localStream}
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video
+								bind:this={previewVideoEl}
+								autoplay
+								playsinline
+								muted
+								class="h-full w-full -scale-x-100 object-cover animate-fade-in"
+							></video>
+						{:else}
+							<div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+								<span class="bg-muted/20 flex size-14 items-center justify-center rounded-full">
+									<VideoIcon class="size-7 opacity-70" />
+								</span>
+								<p class="text-sm leading-relaxed">Camera preview appears after you allow access</p>
+							</div>
+						{/if}
+					</div>
+
+					<div class="grid gap-2">
+						<Label for="lobby-name">Your name</Label>
+						<Input id="lobby-name" bind:value={displayName} autocomplete="name" />
+					</div>
+
+					{#if mediaError}
+						<p class="text-destructive rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed">
+							{mediaError}
+						</p>
+					{/if}
+				</Card.Content>
+				<Card.Footer class="flex gap-2 pt-2">
+					<Button variant="secondary" onclick={leave}>Cancel</Button>
+					<Button class="flex-1 gap-2" onclick={joinMeeting} disabled={joining} size="lg">
+						{#if joining}
+							<Loader2 class="size-4 animate-spin" />
+							Joining…
+						{:else}
+							<Video class="size-4" />
+							Join with camera &amp; microphone
+						{/if}
+					</Button>
+				</Card.Footer>
+			</Card.Root>
+		</div>
+	</div>
+{:else if phase === 'in-call'}
+	<div class="bg-video-surface flex h-screen flex-col text-white">
 		<!-- Top bar -->
-		<header class="flex items-center justify-between gap-3 border-b px-4 py-3">
-			<div class="flex min-w-0 items-center gap-2">
-				<strong class="truncate">{meetingTitle}</strong>
-				<Badge variant="secondary" class="font-mono">{slug}</Badge>
+		<header class="flex items-center justify-between gap-3 border-b border-white/10 bg-black/20 px-4 py-3 backdrop-blur-sm">
+			<div class="flex min-w-0 items-center gap-3">
+				<BrandLogo compact inverted />
+				<div class="hidden h-5 w-px bg-white/15 sm:block"></div>
+				<div class="min-w-0">
+					<strong class="block truncate text-sm font-semibold">{meetingTitle}</strong>
+					<Badge variant="secondary" class="font-mono mt-0.5 text-[0.65rem]">{slug}</Badge>
+				</div>
 			</div>
 			<div class="flex items-center gap-2">
 				<Badge
@@ -297,35 +453,36 @@
 				>
 					{status}
 				</Badge>
-				<Button variant="outline" size="sm" onclick={copyLink}>
+				<Button variant="outline" size="sm" onclick={copyLink} class="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white">
 					{#if copied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
 					Copy link
 				</Button>
+				<span class="hidden sm:inline-flex"><ThemeToggle /></span>
 			</div>
 		</header>
 
 		<!-- Body -->
-		<div class="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-[1fr_360px]">
+		<div class="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-[1fr_380px]">
 			<!-- Video grid -->
 			<div
-				class="grid auto-rows-fr content-start gap-3 overflow-auto"
+				class="grid auto-rows-fr content-start gap-3 overflow-auto p-1"
 				style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));"
 			>
-				<div class="bg-muted relative aspect-video overflow-hidden rounded-xl border">
+				<div class="relative aspect-video overflow-hidden rounded-2xl bg-black/40 ring-1 ring-white/10 shadow-lg">
 					<!-- svelte-ignore a11y_media_has_caption -->
 					<video bind:this={localVideoEl} autoplay playsinline muted class="h-full w-full -scale-x-100 object-cover"
 					></video>
-					<span class="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs text-white">
+					<span class="absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium backdrop-blur-sm">
 						{displayName} (you){!camOn ? ' · cam off' : ''}{!micOn ? ' · muted' : ''}
 					</span>
 				</div>
 
 				{#each remoteTiles as tile (tile.id)}
-					<div class="bg-muted relative aspect-video overflow-hidden rounded-xl border">
+					<div class="relative aspect-video overflow-hidden rounded-2xl bg-black/40 ring-1 ring-white/10 shadow-lg animate-fade-in">
 						<!-- svelte-ignore a11y_media_has_caption -->
 						<video use:attach={tile.stream} autoplay playsinline class="h-full w-full object-cover"></video>
 						<span
-							class="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs text-white"
+							class="absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium backdrop-blur-sm"
 						>
 							{tile.name}
 						</span>
@@ -334,7 +491,7 @@
 			</div>
 
 			<!-- Sidebar: Chat / Captions / People -->
-			<aside class="bg-card flex min-h-0 flex-col overflow-hidden rounded-xl border">
+			<aside class="bg-card text-card-foreground flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-xl">
 				<Tabs.Root bind:value={activeTab} class="flex h-full min-h-0 flex-col gap-0">
 					<Tabs.List class="m-2 grid grid-cols-3">
 						<Tabs.Trigger value="chat">Chat</Tabs.Trigger>
@@ -350,24 +507,26 @@
 						<ScrollArea class="min-h-0 flex-1">
 							<div class="flex flex-col gap-3 p-4">
 								{#if captions.length === 0}
-									<p class="text-muted-foreground text-sm">
+									<p class="text-muted-foreground text-sm leading-relaxed">
 										Turn on captions and start speaking — live transcription and translation appear
 										here.
 									</p>
 								{/if}
 								{#each captions as c (c.key)}
-									<div>
+									<div class="animate-fade-in rounded-xl border bg-muted/40 p-3">
 										<div class="text-primary text-xs font-semibold">{c.name}</div>
-										<div class="text-sm">{c.original}</div>
+										<div class="mt-1 text-sm leading-relaxed">{c.original}</div>
 										{#if c.translated}
-											<div class="text-sm text-emerald-400 italic">{c.translated}</div>
+											<div class="text-success mt-1.5 text-sm italic leading-relaxed">{c.translated}</div>
 										{/if}
 									</div>
 								{/each}
 							</div>
 						</ScrollArea>
 						{#if liveInterim}
-							<div class="text-muted-foreground border-t p-3 text-sm">🎙 {liveInterim}</div>
+							<div class="text-muted-foreground animate-pulse-soft border-t p-3 text-sm">
+								🎙 {liveInterim}
+							</div>
 						{/if}
 					</Tabs.Content>
 
@@ -397,31 +556,36 @@
 		</div>
 
 		<!-- Controls -->
-		<footer class="flex flex-wrap items-center justify-center gap-2 border-t p-3">
-			<Button variant={micOn ? 'secondary' : 'destructive'} onclick={toggleMic}>
-				{#if micOn}<Mic class="size-4" /> Mute{:else}<MicOff class="size-4" /> Unmute{/if}
-			</Button>
-			<Button variant={camOn ? 'secondary' : 'destructive'} onclick={toggleCam}>
-				{#if camOn}<Video class="size-4" /> Stop video{:else}<VideoOff class="size-4" /> Start video{/if}
-			</Button>
-			<Button
-				variant={captionsOn ? 'default' : 'secondary'}
-				onclick={toggleCaptions}
-				disabled={!speechSupported || !ready}
-			>
-				{#if captionsOn}<Captions class="size-4" /> Captions on{:else}<CaptionsOff class="size-4" /> Captions{/if}
-			</Button>
+		<footer class="flex justify-center border-t border-white/10 bg-black/25 px-4 py-4 backdrop-blur-sm">
+			<div class="meeting-control-bar flex flex-wrap items-center justify-center gap-2 px-3 py-2">
+				<Button variant={micOn ? 'secondary' : 'destructive'} onclick={toggleMic} class="rounded-full">
+					{#if micOn}<Mic class="size-4" /> Mute{:else}<MicOff class="size-4" /> Unmute{/if}
+				</Button>
+				<Button variant={camOn ? 'secondary' : 'destructive'} onclick={toggleCam} class="rounded-full">
+					{#if camOn}<Video class="size-4" /> Stop video{:else}<VideoOff class="size-4" /> Start video{/if}
+				</Button>
+				<Button
+					variant={captionsOn ? 'default' : 'secondary'}
+					onclick={toggleCaptions}
+					disabled={!speechSupported || !ready}
+					class="rounded-full"
+				>
+					{#if captionsOn}<Captions class="size-4" /> Captions on{:else}<CaptionsOff class="size-4" /> Captions{/if}
+				</Button>
 
-			<Select.Root type="single" bind:value={sourceLang}>
-				<Select.Trigger class="w-[140px]">{langLabel}</Select.Trigger>
-				<Select.Content>
-					{#each LANGS as l (l.code)}
-						<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
+				<Select.Root type="single" bind:value={sourceLang}>
+					<Select.Trigger class="w-[140px] rounded-full">{langLabel}</Select.Trigger>
+					<Select.Content>
+						{#each LANGS as l (l.code)}
+							<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 
-			<Button variant="destructive" onclick={leave}><PhoneOff class="size-4" /> Leave</Button>
+				<Button variant="destructive" onclick={leave} class="rounded-full">
+					<PhoneOff class="size-4" /> Leave
+				</Button>
+			</div>
 		</footer>
 	</div>
 {/if}

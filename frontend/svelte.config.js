@@ -5,7 +5,11 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		// Root-relative /_app/... assets so nested routes (/m/slug) work after client nav.
+		paths: {
+			relative: false
+		}
 	}
 };
 
