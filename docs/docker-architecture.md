@@ -2,6 +2,9 @@
 
 Everything runs through containers. `docker compose up` is the single entrypoint.
 
+> **Where to click after startup:** see [`docs/local-urls.md`](../docs/local-urls.md) for
+> app, health, API, WebSocket, and optional Grafana URLs.
+
 ## Services (initial)
 
 ```mermaid
@@ -30,10 +33,12 @@ Monitoring services (Phase 5, separate `infra/monitoring/docker-compose.yml` ove
 `prometheus`, `grafana`, `loki`, `promtail` / OTel collector.
 
 ## Routing (nginx)
-- `/` → `frontend:3000`
-- `/api/` → `backend:8080`
-- `/ws` → `backend:8080` (with `Upgrade`/`Connection` headers for WebSocket)
-- `/healthz`, `/readyz`, `/metrics` → `backend:8080`
+All public URLs use **`http://localhost`** (port 80). Full table: [`docs/local-urls.md`](local-urls.md).
+
+- `/` → `frontend:3000` — **app UI** (home, meeting rooms)
+- `/api/` → `backend:8080` — **REST API**
+- `/ws` → `backend:8080` — **WebSocket** (signaling, chat, captions; upgrade headers)
+- `/healthz`, `/readyz`, `/metrics` → `backend:8080` — **ops endpoints**
 
 ## Build Strategy
 - **Backend**: multi-stage build — `golang:1.26` builder → distroless/alpine runtime.

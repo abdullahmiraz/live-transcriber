@@ -15,6 +15,9 @@ A Google-Meet-inspired platform focused on:
 The MVP must be runnable with a single command (`docker compose up`) and built on a
 foundation that can scale toward a production-grade communication platform.
 
+> **After startup:** open [http://localhost/](http://localhost/) for the app; see
+> [`docs/local-urls.md`](local-urls.md) for health, API, WebSocket, and monitoring URLs.
+
 ## 2. Design Principles
 
 1. **Working MVP first**, but no architectural dead-ends.
@@ -65,7 +68,9 @@ flowchart LR
 ## 4. Component Responsibilities
 
 ### Frontend (SvelteKit + TypeScript + Tailwind + shadcn-svelte)
-- UI built with **Tailwind CSS v4** and **shadcn-svelte** components (Slack/Linear-style).
+- UI built with **Tailwind CSS v4** and **shadcn-svelte**; design tokens and patterns in
+  `docs/design-system.md` (Plus Jakarta Sans, light/dark via `mode-watcher`).
+- Shared layout: `BrandLogo`, `AppHeader`, `ThemeToggle`, `PageStage` in `lib/components/layout/`.
 - Meeting lobby + room UI, device selection (camera/mic).
 - WebRTC client: getUserMedia, peer connection lifecycle, mesh negotiation.
 - WebSocket client: signaling + realtime events (participants, captions, chat).

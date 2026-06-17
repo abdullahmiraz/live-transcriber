@@ -1,6 +1,10 @@
 # API Design — HTTP + WebSocket Contracts
 
-Base URL (through nginx): `/api`
+Base URL (through nginx): **`http://localhost/api`** (path prefix `/api`)
+
+> **Local access guide:** browser app, health checks, metrics, and WebSocket URLs are listed
+> in [`docs/local-urls.md`](local-urls.md).
+
 All HTTP request/response bodies are JSON. Errors use a consistent envelope.
 
 ## Error Envelope
@@ -12,9 +16,9 @@ Codes: `bad_request`, `not_found`, `conflict`, `internal`, `unauthorized` (later
 ## HTTP Endpoints
 
 ### Health
-- `GET /healthz` → `200 {"status":"ok"}` (liveness)
-- `GET /readyz` → `200 {"status":"ready"}` / `503` (DB reachable)
-- `GET /metrics` → Prometheus exposition (text)
+- `GET http://localhost/healthz` → `200 {"status":"ok"}` (liveness)
+- `GET http://localhost/readyz` → `200 {"status":"ready"}` / `503` (DB reachable)
+- `GET http://localhost/metrics` → Prometheus exposition (text)
 
 ### Meetings
 - `POST /api/meetings`
@@ -60,7 +64,7 @@ Codes: `bad_request`, `not_found`, `conflict`, `internal`, `unauthorized` (later
 
 ## WebSocket
 
-Endpoint (through nginx): `GET /ws?meeting={slug}&name={displayName}`
+Endpoint (through nginx): **`ws://localhost/ws?meeting={slug}&name={displayName}`**
 Upgrade to WebSocket. The server places the client into the room hub for `{slug}`.
 
 ### Envelope

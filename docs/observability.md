@@ -20,7 +20,9 @@ Example:
 ```
 
 ## Metrics — Prometheus
-Exposed at `GET /metrics`. Core metrics:
+Exposed at **`GET http://localhost/metrics`** (via nginx). See [`docs/local-urls.md`](local-urls.md) for
+Grafana/Prometheus overlay URLs. Core metrics:
+
 | metric | type | labels |
 |---|---|---|
 | `meetings_active` | gauge | — |
@@ -40,7 +42,8 @@ per route, plus gauges updated by the room registry and WS hub.
 - Exporter (OTLP) configured in Phase 5; no-op by default to avoid early complexity.
 
 ## Dashboards (Phase 5)
-Grafana provisioned dashboards:
+Grafana at [http://localhost:3001](http://localhost:3001) when the monitoring overlay is running
+(see `infra/monitoring/README.md` and `docs/local-urls.md`). Provisioned dashboards:
 - Platform overview: active meetings, WS connections, request rate/latency, error rate.
 - AI pipeline: transcription latency, STT/translation error rate.
 

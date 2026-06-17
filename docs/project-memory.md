@@ -39,6 +39,10 @@ live translated captions. MVP-first, scalable foundation.
   accepted. Note: video tiles/captions remain custom (no shadcn equivalent for `<video>`).
 - **ADR-007 (Chat feature):** WS join now resolves the meeting (404/410 if missing/ended) so
   the room knows its DB id for persisting chat. Status: accepted.
+- **ADR-008 (Design system):** Formalized UI tokens in `frontend/src/app.css` + `docs/design-system.md`.
+  Plus Jakarta Sans + JetBrains Mono; light/dark via `mode-watcher` (system default); indigo primary +
+  teal success accent; subtle CSS page transitions; shared layout components; Design System agent
+  (`agents/design-system.md`) owns consistency. Status: accepted.
 
 ## Repository Structure
 ```
@@ -47,7 +51,8 @@ backend/    Go (cmd/, internal/{config,httpapi,ws,meeting,chat,transcription,tra
             pubsub,storage,observability,platform}, migrations/)
 infra/      nginx/, monitoring/
 docs/       architecture, roadmap, db, api, docker, observability, stt, this file
-agents/     architect, backend, frontend, devops, database, testing
+            local-urls.md — where to go after docker compose up (app, health, API, WS, Grafana)
+agents/     architect, backend, frontend, design-system, devops, database, testing
 skills/     architecture-review, docker-setup, api-design, database-design, testing, debugging
 ```
 
@@ -75,7 +80,8 @@ skills/     architecture-review, docker-setup, api-design, database-design, test
 - WS: presence, signaling relay (server-stamped `from`), transcript + translation broadcast.
 - Chat (with Redis/Valkey broker): `chat.new` delivered to both clients, validation
   (empty rejected), persistence + REST history. All checks passed.
-- Frontend: `svelte-check` 0/0, production build OK, landing renders the new shadcn UI.
+- Frontend: `svelte-check` 0/0, production build OK, landing + meeting UI with design system
+  (light/dark, typography, page transitions, shared layout components).
 
 ## ADR-004 (Phase 1): WS upgrade through middleware
 The metrics middleware wraps `http.ResponseWriter`; the wrapper must implement
@@ -88,6 +94,11 @@ fails with 1006. Status: fixed in `internal/httpapi/middleware.go`.
   uses the browser Web Speech API client-side to feed text into the pipeline (free, no key).
 - TURN server not yet provided — some restrictive NATs will fail P2P until added.
 - Web Speech API is Chrome/Edge-centric; captions degrade gracefully where unsupported.
+- **Fixed (2026-06-17):** Meeting room JS failed on `/m/{slug}` after client navigation because
+  SvelteKit used relative `../_app/` asset paths; set `kit.paths.relative: false`. Deployed
+  Docker image was also stale (old onMount getUserMedia without lobby). Rebuild with
+  `docker compose up --build`.
+- Camera/mic require **http://localhost** (or HTTPS) — not plain HTTP on a LAN IP.
 - Environment note: Docker Hub was unreachable in the dev sandbox, so `docker compose up`
   image pulls couldn't be exercised here; the compose config is validated and services
   were verified by running them directly. Re-run `docker compose up --build` where Hub is
