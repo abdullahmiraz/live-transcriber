@@ -25,12 +25,14 @@ captions**.
 cp .env.example .env
 bash scripts/generate-dev-certs.sh   # once — needed for phone camera over Wi‑Fi (HTTPS)
 docker compose up --build            # first time only; after that: docker compose up
+# Optional graphs/logs (Grafana): docker compose --profile monitoring up -d
 ```
 
 | Where | URL |
 |---|---|
 | **This PC** | [http://localhost/](http://localhost/) |
 | **Phone / tablet (same Wi‑Fi)** | `https://<your-pc-lan-ip>/` (accept cert warning once) |
+| **Grafana dashboards** | [http://localhost:3001](http://localhost:3001) — requires `--profile monitoring`; login via `GRAFANA_USER` / `GRAFANA_PASSWORD` in `.env` |
 | **Production build (no hot reload)** | `docker compose -f docker-compose.prod.yml up --build` |
 
 Code changes under `frontend/` and `backend/` reload automatically (Vite HMR + Air).

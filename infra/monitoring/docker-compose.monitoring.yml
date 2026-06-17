@@ -1,12 +1,14 @@
-# Observability overlay (Phase 5). Run alongside the main stack:
-#   docker compose -f docker-compose.yml -f infra/monitoring/docker-compose.monitoring.yml up -d
+# Observability overlay (Phase 5).
+# Start with the app:  docker compose --profile monitoring up
+# Or attach to running stack: docker compose --profile monitoring up -d
 #
-# Grafana:    http://localhost:3001  (admin/admin by default)
+# Grafana:    http://localhost:3001  (GRAFANA_USER / GRAFANA_PASSWORD in .env)
 # Prometheus: http://localhost:9090
 # Loki API:   http://localhost:3100
 
 services:
   prometheus:
+    profiles: [monitoring]
     image: prom/prometheus:v2.54.1
     volumes:
       - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -16,6 +18,7 @@ services:
     restart: unless-stopped
 
   loki:
+    profiles: [monitoring]
     image: grafana/loki:3.1.1
     command: -config.file=/etc/loki/loki-config.yml
     volumes:
@@ -26,6 +29,7 @@ services:
     restart: unless-stopped
 
   promtail:
+    profiles: [monitoring]
     image: grafana/promtail:3.1.1
     command: -config.file=/etc/promtail/promtail-config.yml
     volumes:
@@ -36,6 +40,7 @@ services:
     restart: unless-stopped
 
   grafana:
+    profiles: [monitoring]
     image: grafana/grafana:11.2.0
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}

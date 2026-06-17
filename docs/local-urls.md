@@ -104,19 +104,24 @@ Events include presence, WebRTC signaling, chat (`chat.new`), captions
 
 ---
 
-## 3. Optional: monitoring overlay (Grafana stack)
+## 3. Optional: monitoring (Grafana + Prometheus)
 
-The core app does **not** require this. Enable when you want dashboards and log search.
+**Not started by default.** Plain `docker compose up` only runs the app — ports **3001** and **9090** will not respond until you enable monitoring.
 
 ```bash
-docker compose -f docker-compose.yml -f infra/monitoring/docker-compose.monitoring.yml up -d --build
+docker compose --profile monitoring up -d
 ```
+
+Or add `COMPOSE_PROFILES=monitoring` to `.env` to always include dashboards.
+
+Grafana credentials: set `GRAFANA_USER` and `GRAFANA_PASSWORD` in `.env` (see `.env.example`).
 
 | What | URL | Default login |
 |---|---|---|
-| **Grafana** (dashboards) | [http://localhost:3001](http://localhost:3001) | `admin` / `admin` |
-| **Prometheus** (raw metrics UI) | [http://localhost:9090](http://localhost:9090) | — |
+| **Grafana** (graphs + logs — use this) | [http://localhost:3001](http://localhost:3001) | `GRAFANA_USER` / `GRAFANA_PASSWORD` from `.env` |
+| **Prometheus** (ad-hoc queries) | [http://localhost:9090](http://localhost:9090) | — |
 | **Loki** (log API) | [http://localhost:3100](http://localhost:3100) | Query via Grafana, not meant for direct browsing |
+| **Raw metrics** (plain text, not graphs) | [http://localhost/metrics](http://localhost/metrics) | — |
 
 Grafana loads the **Meeting Platform — Overview** dashboard automatically. Backend metrics
 are still scraped from `backend:8080/metrics`; the app also exposes them at
@@ -214,7 +219,7 @@ have a specific debugging need.
 | Certificate warning on phone | Expected for self-signed dev certs — tap Advanced → Proceed once per device |
 | Changes not appearing | Dev stack uses bind mounts + hot reload — use `docker compose up`, not `docker-compose.prod.yml` |
 | Phone cannot reach PC at all | Windows Firewall may block inbound :80/:443 — allow Docker Desktop or add rules for ports 80 and 443 |
-| Grafana empty | Start the monitoring overlay; confirm backend metrics at [http://localhost/metrics](http://localhost/metrics) |
+| Grafana empty / :3001 refused | Start monitoring: `docker compose --profile monitoring up -d`; check `GRAFANA_*` in `.env` |
 
 ---
 

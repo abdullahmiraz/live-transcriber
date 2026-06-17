@@ -3,10 +3,14 @@
 #   cp .env.example .env
 #   bash scripts/generate-dev-certs.sh    # once, for phone camera over Wi‑Fi (HTTPS)
 #   docker compose up --build
+# With Grafana dashboards: docker compose --profile monitoring up
 # Production (no hot reload): docker compose -f docker-compose.prod.yml up --build
 # Networking: only `nginx` publishes a port. postgres and redis have NO `ports` mapping,
 # so they are reachable only on the private compose network — never exposed publicly.
 # Data safety: postgres and redis both persist to named volumes and survive restart/rebuild.
+
+include:
+  - path: infra/monitoring/docker-compose.monitoring.yml
 
 services:
   postgres:

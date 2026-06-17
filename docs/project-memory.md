@@ -46,7 +46,7 @@ live translated captions. MVP-first, scalable foundation.
 
 ## Repository Structure
 ```
-frontend/   SvelteKit app (Tailwind v4 + shadcn-svelte in src/lib/components/ui)
+frontend/   SvelteKit app; shared config in src/lib/{config,meeting,api,media,realtime,utils}
 backend/    Go (cmd/, internal/{config,httpapi,ws,meeting,chat,transcription,translation,
             pubsub,storage,observability,platform}, migrations/)
 infra/      nginx/, monitoring/
@@ -68,10 +68,9 @@ skills/     architecture-review, docker-setup, api-design, database-design, test
   (offer/answer/ICE), WebRTC mesh client. Verified with a two-client WS test.
 - Phase 4 (AI features): **complete (MVP)** — speech.received → STT (mock/Web Speech) →
   transcript.updated → translation (mock) → translation.updated → captions UI. Verified.
-- Phase 5 (Hardening): **foundation in place** — structured JSON logs (request_id/
-  meeting_id), Prometheus metrics at /metrics (incl. `chat_messages_total`),
-  Grafana+Prometheus+Loki+Promtail overlay, CORS, graceful shutdown. Tests for domain +
-  providers + chat. OTel hooks prepared (flagged off).
+- Phase 5 (Hardening): **foundation in place** — structured JSON logs, Prometheus at `/metrics`,
+  Grafana+Prometheus+Loki+Promtail via **`monitoring` Compose profile** (`docker compose --profile monitoring up`),
+  CORS, graceful shutdown. OTel hooks prepared (`OTEL_ENABLED=false`).
 - **Realtime Chat (feature add):** **complete** — `messages` table (migration 0002),
   `pubsub` broker (Redis + in-memory), `chat` domain + Postgres repo, WS `chat.message`/
   `chat.new`, REST history with keyset pagination, shadcn-svelte chat UI in a tabbed sidebar
@@ -96,8 +95,10 @@ See **`docs/change-history/INDEX.md`** for full journal with rollback steps.
 
 | Date | Summary |
 |------|---------|
-| 2026-06-17 | Meeting control bar, mic wave, user-selected caption translation target → [entry](change-history/entries/2026-06-17-meeting-controls-translation.md) |
-| 2026-06-17 | Dev Docker hot reload, LAN HTTPS, mobile chat/camera, join modes, 10m empty-room delete, theme + video grid fixes → [entry](change-history/entries/2026-06-17-dev-lan-mobile-meeting.md) |
+| 2026-06-17 | Monitoring Compose profile, Grafana login via `GRAFANA_*` env, docs sync → [entry](change-history/entries/2026-06-17-monitoring-profile-docs.md) |
+| 2026-06-17 | Frontend config centralization (`languages.json`, meeting types/constants) → [entry](change-history/entries/2026-06-17-frontend-config-centralize.md) |
+| 2026-06-17 | Getting started guide, meeting control bar, caption translation target → [entries](change-history/INDEX.md) |
+| 2026-06-17 | Dev Docker hot reload, LAN HTTPS, mobile chat/camera, join modes, empty-room cleanup → [entry](change-history/entries/2026-06-17-dev-lan-mobile-meeting.md) |
 
 ## Known Issues / Watch List
 - Mesh WebRTC won't scale past small rooms (by design) — track room sizes.
@@ -110,8 +111,9 @@ See **`docs/change-history/INDEX.md`** for full journal with rollback steps.
   appeared. Fixed by reading `page.params.slug` from the URL.
 - Camera/mic on **this PC**: `http://localhost` works. On **phones / LAN IPs**: use
   **`https://<your-pc-lan-ip>/`** after `bash scripts/generate-dev-certs.sh` (self-signed cert).
-- **Dev Docker (2026-06-17):** `docker compose up` is now hot-reload by default (Vite + Air).
-  Production build: `docker-compose.prod.yml`. CORS defaults to `*` for LAN dev.
+- **Dev Docker (2026-06-17):** `docker compose up` is hot-reload by default (Vite + Air).
+  Grafana/Prometheus require `--profile monitoring` or `COMPOSE_PROFILES=monitoring` in `.env`.
+  Login: `GRAFANA_USER` / `GRAFANA_PASSWORD`. Production: `docker-compose.prod.yml`.
 - Environment note: Docker Hub was unreachable in the dev sandbox, so `docker compose up`
   image pulls couldn't be exercised here; the compose config is validated and services
   were verified by running them directly. Re-run `docker compose up --build` where Hub is

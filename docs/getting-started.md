@@ -54,7 +54,7 @@ Use this table to confirm every capability is working on your machine.
 | **Copy meeting link** | In-call → copy button | Link uses current origin (HTTPS on phone → HTTPS link for guests) |
 | **Leave / empty room** | Leave button; room auto-deletes ~10 min after last person leaves | — |
 | **Hot reload (dev)** | Edit `frontend/` or `backend/` files | Use default `docker compose up`, **not** `docker-compose.prod.yml` |
-| **Monitoring (optional)** | Grafana dashboards + log search | Extra compose overlay (see § Monitoring) |
+| **Monitoring (optional)** | Grafana dashboards + log search | `docker compose --profile monitoring up -d`; login from `.env` |
 
 ### Find your LAN IP (for phones)
 
@@ -88,6 +88,8 @@ Copy from `.env.example`. Defaults are enough for full MVP power — **no API ke
 | `TRANSLATION_PROVIDER` | `mock` | Tags translation with target lang (`[ru] …`) |
 | `DEFAULT_TARGET_LANG` | `ru` | Fallback if client omits `targetLang` |
 | `REDIS_URL` | `redis://redis:6379/0` | Chat fan-out across WS connections |
+| `GRAFANA_USER` / `GRAFANA_PASSWORD` | `admin` / `admin` | Grafana login when monitoring profile is on |
+| `COMPOSE_PROFILES` | _(unset)_ | Set to `monitoring` to auto-start Grafana/Prometheus |
 
 **Upgrade to real AI later** (optional): set `STT_PROVIDER=whisper` or `deepgram`, `TRANSLATION_PROVIDER=libretranslate`, plus provider keys. See [`stt-decision.md`](stt-decision.md).
 
@@ -95,19 +97,34 @@ Copy from `.env.example`. Defaults are enough for full MVP power — **no API ke
 
 ## Monitoring overlay (optional)
 
-Core app works without this. Enable for Prometheus metrics UI, Grafana dashboards, and Loki logs:
+**Grafana and Prometheus are not started by plain `docker compose up`.** Use the `monitoring` profile:
 
 ```bash
-docker compose -f docker-compose.yml -f infra/monitoring/docker-compose.monitoring.yml up -d --build
+docker compose --profile monitoring up -d
 ```
 
 | Service | URL | Login |
 |---------|-----|-------|
-| Grafana | [http://localhost:3001](http://localhost:3001) | `admin` / `admin` |
-| Prometheus | [http://localhost:9090](http://localhost:9090) | — |
-| App metrics (via nginx) | [http://localhost/metrics](http://localhost/metrics) | — |
+| **Grafana** (graphs + logs) | [http://localhost:3001](http://localhost:3001) | `GRAFANA_USER` / `GRAFANA_PASSWORD` from `.env` |
+| **Prometheus** (query UI) | [http://localhost:9090](http://localhost:9090) | — |
+| Raw metrics (text, not graphs) | [http://localhost/metrics](http://localhost/metrics) | — |
 
-Details: [`observability.md`](observability.md), [`infra/monitoring/README.md`](../infra/monitoring/README.md).
+Dashboard: **Meeting Platform — Overview** (auto-loaded in Grafana).
+
+Set credentials in `.env` (copy from `.env.example`):
+
+```
+GRAFANA_USER=admin
+GRAFANA_PASSWORD=admin
+```
+
+To always start monitoring with the app:
+
+```
+COMPOSE_PROFILES=monitoring
+```
+
+Details: [`infra/monitoring/README.md`](../infra/monitoring/README.md), [`observability.md`](observability.md).
 
 ---
 

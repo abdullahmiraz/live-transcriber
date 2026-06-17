@@ -29,8 +29,18 @@ flowchart TB
 Security rule: **only nginx publishes a port.** `postgres` and `redis` have no `ports:`
 mapping, so they are reachable only on the private compose network — never exposed publicly.
 
-Monitoring services (Phase 5, separate `infra/monitoring/docker-compose.yml` overlay):
-`prometheus`, `grafana`, `loki`, `promtail` / OTel collector.
+Monitoring services (Phase 5, **`monitoring` Compose profile** — included from
+`infra/monitoring/docker-compose.monitoring.yml`):
+
+| Service | Host port | Purpose |
+|---|---|---|
+| `grafana` | 3001 | Dashboards + log UI |
+| `prometheus` | 9090 | Metrics store / query UI |
+| `loki` | 3100 | Log store (queried via Grafana) |
+| `promtail` | — | Ships container logs to Loki |
+
+Start with: `docker compose --profile monitoring up -d`. Grafana login is set by
+`GRAFANA_USER` and `GRAFANA_PASSWORD` in `.env` (see `.env.example`).
 
 ## Routing (nginx)
 All public URLs use **`http://localhost`** (port 80). Full table: [`docs/local-urls.md`](local-urls.md).
@@ -59,6 +69,7 @@ All public URLs use **`http://localhost`** (port 80). Full table: [`docs/local-u
 - Backend reads: `DATABASE_URL`, `REDIS_URL`, `PORT`, `LOG_LEVEL`, `CORS_ORIGINS`,
   `STT_PROVIDER`, `TRANSLATION_PROVIDER`, `DEFAULT_TARGET_LANG`, provider API keys.
 - Postgres: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+- Monitoring profile: `GRAFANA_USER`, `GRAFANA_PASSWORD`, optional `COMPOSE_PROFILES=monitoring`.
 
 ## Health & Ordering
 - `postgres` has a healthcheck (`pg_isready`); `redis` has a healthcheck (`redis-cli ping`).
