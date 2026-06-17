@@ -6,6 +6,12 @@ export type LocalMediaResult = {
 	note?: string;
 };
 
+/** Which devices to request when joining a meeting. */
+export type MediaJoinPreferences = {
+	audio: boolean;
+	video: boolean;
+};
+
 function isPermissionDenied(err: unknown): boolean {
 	return (
 		err instanceof DOMException &&
@@ -58,24 +64,59 @@ async function tryExplicitDevices(md: MediaDevices): Promise<MediaStream | null>
 
 /**
  * Request camera and/or microphone with fallbacks.
- * A single `{ video: true, audio: true }` call fails with NotFoundError when either
- * device is missing or misreported — common on Windows with privacy/driver quirks.
+ * Pass `{ audio: false, video: false }` to join without devices (chat / view only).
  */
-export async function requestLocalMedia(): Promise<LocalMediaResult> {
+export async function requestLocalMedia(
+	prefs: MediaJoinPreferences = { audio: true, video: true }
+): Promise<LocalMediaResult> {
+	const { audio: wantAudio, video: wantVideo } = prefs;
+
+	if (!wantAudio && !wantVideo) {
+		return {
+			stream: new MediaStream(),
+			hasVideo: false,
+			hasAudio: false,
+			note: 'Joined without camera or microphone. You can still chat and watch others.'
+		};
+	}
+
+	// On many mobile browsers (and all iOS browsers), camera/mic are HTTPS-only.
+	// When served over plain HTTP on a LAN IP, `navigator.mediaDevices` may appear missing,
+	// which is confusing. Surface this as a secure-context error instead.
+	if (typeof window !== 'undefined' && !window.isSecureContext) {
+		throw new DOMException(
+			'Camera and microphone require a secure connection on phones and LAN IPs. Open the site over HTTPS (accept the certificate warning once), then try again.',
+			'SecurityError'
+		);
+	}
+
 	const md = navigator.mediaDevices;
 	if (!md?.getUserMedia) {
 		throw new DOMException('Media devices are not available in this browser.', 'NotSupportedError');
 	}
 
-	const attempts: MediaStreamConstraints[] = [
-		{ audio: true, video: true },
-		{
-			audio: { echoCancellation: true, noiseSuppression: true },
-			video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-		},
-		{ audio: true, video: false },
-		{ audio: false, video: true }
-	];
+	const attempts: MediaStreamConstraints[] = [];
+	if (wantAudio && wantVideo) {
+		attempts.push(
+			{ audio: true, video: true },
+			{
+				audio: { echoCancellation: true, noiseSuppression: true },
+				video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+			},
+			{ audio: true, video: false },
+			{ audio: false, video: true }
+		);
+	} else if (wantAudio) {
+		attempts.push(
+			{ audio: true, video: false },
+			{ audio: { echoCancellation: true, noiseSuppression: true }, video: false }
+		);
+	} else {
+		attempts.push(
+			{ audio: false, video: true },
+			{ audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
+		);
+	}
 
 	for (const constraints of attempts) {
 		const stream = await tryGet(md, constraints);
@@ -83,33 +124,42 @@ export async function requestLocalMedia(): Promise<LocalMediaResult> {
 			const hasVideo = stream.getVideoTracks().length > 0;
 			const hasAudio = stream.getAudioTracks().length > 0;
 			let note: string | undefined;
-			if (hasAudio && !hasVideo) note = 'Joined with microphone only (no camera in use).';
-			if (hasVideo && !hasAudio) note = 'Joined with camera only (no microphone in use).';
+			if (wantAudio && wantVideo) {
+				if (hasAudio && !hasVideo) note = 'Joined with microphone only (no camera in use).';
+				if (hasVideo && !hasAudio) note = 'Joined with camera only (no microphone in use).';
+			} else if (wantAudio && !hasVideo) {
+				note = 'Joined with microphone only.';
+			} else if (wantVideo && !hasAudio) {
+				note = 'Joined with camera only.';
+			}
 			return { stream, hasVideo, hasAudio, note };
 		}
 	}
 
-	const audioOnly = await tryGet(md, { audio: true, video: false });
-	const videoOnly = await tryGet(md, { audio: false, video: true });
-	const merged = mergeStreams(audioOnly, videoOnly);
-	if (merged) {
-		const hasVideo = merged.getVideoTracks().length > 0;
-		const hasAudio = merged.getAudioTracks().length > 0;
-		let note: string | undefined;
-		if (hasAudio && !hasVideo) note = 'Joined with microphone only (no camera in use).';
-		if (hasVideo && !hasAudio) note = 'Joined with camera only (no microphone in use).';
-		return { stream: merged, hasVideo, hasAudio, note };
+	if (wantAudio && wantVideo) {
+		const audioOnly = await tryGet(md, { audio: true, video: false });
+		const videoOnly = await tryGet(md, { audio: false, video: true });
+		const merged = mergeStreams(audioOnly, videoOnly);
+		if (merged) {
+			const hasVideo = merged.getVideoTracks().length > 0;
+			const hasAudio = merged.getAudioTracks().length > 0;
+			let note: string | undefined;
+			if (hasAudio && !hasVideo) note = 'Joined with microphone only (no camera in use).';
+			if (hasVideo && !hasAudio) note = 'Joined with camera only (no microphone in use).';
+			return { stream: merged, hasVideo, hasAudio, note };
+		}
+
+		const explicit = await tryExplicitDevices(md);
+		if (explicit) {
+			const hasVideo = explicit.getVideoTracks().length > 0;
+			const hasAudio = explicit.getAudioTracks().length > 0;
+			return { stream: explicit, hasVideo, hasAudio };
+		}
 	}
 
-	const explicit = await tryExplicitDevices(md);
-	if (explicit) {
-		const hasVideo = explicit.getVideoTracks().length > 0;
-		const hasAudio = explicit.getAudioTracks().length > 0;
-		return { stream: explicit, hasVideo, hasAudio };
-	}
-
+	const deviceLabel = wantAudio && wantVideo ? 'camera or microphone' : wantAudio ? 'microphone' : 'camera';
 	throw new DOMException(
-		'Could not open a camera or microphone. Check that devices are connected and allowed in system settings.',
+		`Could not open your ${deviceLabel}. Check that devices are connected and allowed in system settings.`,
 		'NotFoundError'
 	);
 }
@@ -142,7 +192,7 @@ export function mediaErrorMessage(err: unknown): string {
 		case 'TrackStartError':
 			return 'Your camera or microphone is in use by another application (Zoom, Teams, etc.). Close it and try again.';
 		case 'SecurityError':
-			return 'Camera and microphone require a secure connection. Use http://localhost (not an IP address) or HTTPS.';
+			return 'Camera and microphone require HTTPS on phones and LAN IPs. Open https://<your-pc-ip>/ (same Wi‑Fi), accept the certificate warning once, then try again. On this PC, http://localhost also works.';
 		case 'NotSupportedError':
 			return 'This browser does not support camera or microphone access.';
 		default:

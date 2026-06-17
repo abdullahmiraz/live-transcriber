@@ -21,6 +21,8 @@ export class SignalingClient {
 	private reconnectDelay = 1000;
 
 	onStatusChange?: (status: 'connecting' | 'open' | 'closed') => void;
+	/** Fires after each successful WebSocket open (initial + reconnect). */
+	onOpen?: () => void;
 
 	constructor(slug: string, name: string) {
 		this.url = buildWsUrl(slug, name);
@@ -36,6 +38,7 @@ export class SignalingClient {
 			this.onStatusChange?.('open');
 			for (const msg of this.outbox) ws.send(msg);
 			this.outbox = [];
+			this.onOpen?.();
 		};
 
 		ws.onmessage = (ev) => {
@@ -70,13 +73,30 @@ export class SignalingClient {
 		return () => set?.delete(handler);
 	}
 
-	send<T>(env: Envelope<T>): void {
+	send<T>(env: Envelope<T>): boolean {
 		const data = JSON.stringify(env);
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 			this.ws.send(data);
-		} else {
-			this.outbox.push(data);
+			return true;
 		}
+		this.outbox.push(data);
+		return false;
+	}
+
+	isOpen(): boolean {
+		return this.ws?.readyState === WebSocket.OPEN;
+	}
+
+	isConnecting(): boolean {
+		return this.ws?.readyState === WebSocket.CONNECTING;
+	}
+
+	/** Reconnect when the socket dropped (e.g. phone backgrounded). */
+	reconnectIfNeeded(): void {
+		if (!this.shouldReconnect) return;
+		const state = this.ws?.readyState;
+		if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
+		this.connect();
 	}
 
 	close(): void {

@@ -62,8 +62,8 @@
 		</span>
 	</AppHeader>
 
-	<main class="grid flex-1 items-center gap-12 py-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-12">
-		<section class="animate-fade-in-up max-w-xl">
+	<main class="grid flex-1 items-center gap-8 py-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-12">
+		<section class="animate-fade-in-up order-2 max-w-xl lg:order-1">
 			<p
 				class="text-primary mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-xs font-semibold tracking-wide uppercase"
 			>
@@ -97,7 +97,7 @@
 			</ul>
 		</section>
 
-		<Card.Root class="surface-card animate-scale-in w-full border-0 shadow-none">
+		<Card.Root class="surface-card animate-scale-in order-1 w-full border-0 shadow-none lg:order-2">
 			<Card.Header class="pb-2">
 				<Card.Title class="text-xl">Get started</Card.Title>
 				<Card.Description>Create a new meeting or join with a code.</Card.Description>
@@ -143,7 +143,8 @@
 		</Card.Root>
 	</main>
 
-	<footer class="text-muted-foreground border-t pt-6 text-center text-xs">
-		Swappable STT &amp; translation · Postgres source of truth · Redis fan-out
+	<footer class="text-muted-foreground space-y-1 border-t pt-6 text-center text-xs">
+		<p>On your phone (same Wi‑Fi): open <strong>https://&lt;your-pc-ip&gt;/</strong> — accept the certificate warning once.</p>
+		<p>Swappable STT &amp; translation · Postgres source of truth · Redis fan-out</p>
 	</footer>
 </div>

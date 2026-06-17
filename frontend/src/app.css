@@ -192,13 +192,14 @@
 	}
 }
 
-@layer base {
+	@layer base {
 	* {
 		border-color: var(--border);
 	}
 
 	html {
 		scroll-behavior: smooth;
+		-webkit-text-size-adjust: 100%;
 	}
 
 	body {
@@ -209,6 +210,8 @@
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 		text-rendering: optimizeLegibility;
+		padding-left: env(safe-area-inset-left);
+		padding-right: env(safe-area-inset-right);
 	}
 
 	h1,
@@ -292,5 +295,63 @@
 		border: 1px solid var(--border);
 		border-radius: 9999px;
 		box-shadow: 0 4px 24px oklch(0 0 0 / 12%);
+		padding-bottom: env(safe-area-inset-bottom, 0px);
+	}
+
+	/* In-call video: fill available area — no inner scroll; tiles crop with object-cover */
+	.video-stage {
+		display: flex;
+		min-height: 0;
+		min-width: 0;
+		flex: 1 1 auto;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.video-grid {
+		display: grid;
+		height: 100%;
+		min-height: 0;
+		width: 100%;
+		gap: 0.5rem;
+		padding: 0.5rem;
+	}
+
+	@media (min-width: 640px) {
+		.video-grid {
+			gap: 0.75rem;
+			padding: 0.75rem;
+		}
+	}
+
+	.video-tile {
+		position: relative;
+		min-height: 0;
+		min-width: 0;
+		overflow: hidden;
+		border-radius: 1rem;
+		background: oklch(0 0 0 / 40%);
+		box-shadow: 0 4px 24px oklch(0 0 0 / 25%);
+	}
+
+	.video-tile > video {
+		position: absolute;
+		inset: 0;
+		height: 100%;
+		width: 100%;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	.video-tile-placeholder {
+		position: absolute;
+		inset: 0;
+		height: 100%;
+		width: 100%;
+	}
+
+	.touch-target {
+		min-height: 44px;
+		min-width: 44px;
 	}
 }
