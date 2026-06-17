@@ -4,6 +4,8 @@
 - SvelteKit app in `frontend/`, TypeScript, `@sveltejs/adapter-node` for containerized SSR.
 - **UI is built with Tailwind CSS v4 + shadcn-svelte** (components vendored in
   `src/lib/components/ui`). Add components via `npx shadcn-svelte@latest add <name>`.
+- **Design system:** follow `docs/design-system.md`; use shared layout components in
+  `src/lib/components/layout/`; semantic color tokens from `app.css` (no hardcoded colors).
 - Talks to backend through nginx: REST at `/api`, WebSocket at `/ws`.
 - WebRTC mesh: getUserMedia, RTCPeerConnection per remote peer, signaling over WS.
 - Captions render `transcript.updated`/`translation.updated`; chat renders `chat.new`.
@@ -16,6 +18,8 @@
 - WebRTC client module: offer/answer/ICE lifecycle, cleanup on leave.
 
 ## Coding rules
+- **Design-system-first:** read `docs/design-system.md`; coordinate with Design System agent
+  for token/pattern changes. Use `BrandLogo`, `AppHeader`, `ThemeToggle`, `PageStage`.
 - **ShadCN-first:** use shadcn-svelte components (Button, Input, Card, Tabs, ScrollArea,
   Avatar, Select, Dialog, …) instead of hand-rolled UI when an equivalent exists. Custom
   markup is acceptable only where no shadcn equivalent exists (e.g. `<video>` tiles).

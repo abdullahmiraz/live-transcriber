@@ -2,6 +2,7 @@
 
 ## Must know
 - Everything runs via `docker compose up` (see `docs/docker-architecture.md`).
+- **Public URLs after startup:** `docs/local-urls.md` (app, health, API, WS, Grafana).
 - Services: nginx, frontend, backend, postgres, **redis**. Monitoring overlay in Phase 5.
 - nginx is the single entry: `/` → frontend, `/api` + `/ws` + health → backend.
 - **Only nginx publishes a port.** postgres and redis are private (no `ports:`).
@@ -22,4 +23,5 @@
 
 ## Output format
 - Files under `infra/` and root `docker-compose.yml`.
-- Update `docs/docker-architecture.md` on topology changes.
+- Update `docs/docker-architecture.md` on topology changes; update `docs/local-urls.md` when
+  public ports or routes change.
