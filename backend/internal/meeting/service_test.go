@@ -40,6 +40,17 @@ func (f *fakeRepo) End(_ context.Context, slug string) (*Meeting, error) {
 	return m, nil
 }
 
+func (f *fakeRepo) DeleteBySlug(_ context.Context, slug string) error {
+	if f.bySlug == nil {
+		return ErrNotFound
+	}
+	if _, ok := f.bySlug[slug]; !ok {
+		return ErrNotFound
+	}
+	delete(f.bySlug, slug)
+	return nil
+}
+
 func TestCreateAssignsSlugAndActiveStatus(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := NewService(repo)
