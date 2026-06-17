@@ -65,6 +65,20 @@ and `GET /healthz` + the SvelteKit landing page both respond through nginx.
 
 **Done when:** metrics/logs visible in Grafana; key paths covered by tests.
 
+## Feature: Realtime Chat (text-only, inside meetings) — DONE
+Added after the core phases. Clean separation: PostgreSQL = source of truth, Redis = realtime.
+
+**Deliverables**
+- DB: `messages` table (migration 0002), indexed `(meeting_id, created_at)`, paginated.
+- Backend: `pubsub.Broker` (Redis + in-memory), `chat` domain + Postgres repo, WS
+  `chat.message`/`chat.new`, REST `GET /api/meetings/{slug}/messages` (keyset pagination).
+- Realtime: WS → persist → Redis pub/sub (`room:{slug}`) → fan-out to all participants.
+- Frontend: shadcn-svelte chat panel in a tabbed sidebar (Chat / Captions / People).
+- Docker: `redis` service (private), `redis_data` + `postgres_data` volumes.
+
+**Done when:** participants in a room exchange messages in realtime, history persists and
+reloads. ✅ Verified e2e over Redis (Valkey).
+
 ## Priority Order (from spec)
 1. Working MVP
 2. Developer velocity

@@ -2,10 +2,14 @@
 
 ## Must know
 - Clean architecture layout in `backend/` (see `docs/architecture.md` §5).
-- Transport: `internal/http` (REST) and `internal/ws` (hub + signaling).
-- Domain: `internal/meeting`, `internal/transcription`, `internal/translation`.
-- Infra: `internal/storage/postgres`, provider adapters, `internal/observability`.
+- Transport: `internal/httpapi` (REST) and `internal/ws` (hub + signaling + chat dispatch).
+- Domain: `internal/meeting`, `internal/chat`, `internal/transcription`, `internal/translation`.
+- Infra: `internal/storage/postgres`, `internal/pubsub` (Redis + in-memory), provider
+  adapters, `internal/observability`.
 - Composition root: `cmd/server/main.go`.
+- Chat flow: WS `chat.message` → `chat.Service` (validate → persist PG → publish broker
+  `room:{slug}`) → hub `room:*` subscriber → `chat.new` to all clients. Never broadcast
+  locally on send (avoids double-delivery across instances).
 
 ## Responsibilities
 - Implement REST endpoints and WS events per `docs/api-design.md`.

@@ -36,6 +36,28 @@ Codes: `bad_request`, `not_found`, `conflict`, `internal`, `unauthorized` (later
 - `POST /api/meetings/{slug}/end`
   - Response `200`: updated meeting with `status:"ended"`.
 
+### Chat
+- `GET /api/meetings/{slug}/messages?limit=50&before=<RFC3339>`
+  - Returns recent chat history in chronological order (oldest → newest). `before` is a
+    keyset cursor (a message `createdAt`) for loading earlier pages; `limit` defaults to 50
+    (max 200).
+  - Response `200`:
+    ```json
+    {
+      "messages": [
+        {
+          "id": "uuid",
+          "meetingId": "uuid",
+          "senderId": "p-abc123",
+          "senderName": "Alice",
+          "content": "hello team",
+          "createdAt": "2026-06-17T08:00:00Z"
+        }
+      ]
+    }
+    ```
+  - `404` if the meeting does not exist. Realtime delivery of new messages is over WebSocket.
+
 ## WebSocket
 
 Endpoint (through nginx): `GET /ws?meeting={slug}&name={displayName}`
@@ -76,10 +98,20 @@ AI pipeline:
 | `transcript.updated` | server → clients | `{ "participantId","text","lang","isFinal","seq" }` |
 | `translation.updated` | server → clients | `{ "participantId","text","sourceLang","targetLang","seq" }` |
 
+Chat (text-only; realtime delivery via Redis pub/sub fan-out):
+| type | direction | payload |
+|---|---|---|
+| `chat.message` | client → server | `{ "content": "hello team" }` |
+| `chat.new` | server → clients | `{ "id","meetingId","senderId","senderName","content","createdAt" }` |
+
 ### Schema Rules
 - Unknown `type` → server replies `{ "type":"error", "payload":{ "code":"unknown_type" } }`.
 - Signaling messages MUST include `to`; otherwise dropped with an error reply.
 - The server never trusts client-supplied `from`; it stamps the authenticated/session id.
+- `chat.message` is validated server-side (non-empty, ≤4000 chars). On failure the server
+  replies `error` with code `empty_message` or `message_too_long`. The message is persisted
+  to PostgreSQL before being published to Redis; `chat.new` is delivered to all participants
+  (including the sender) via the broker subscription.
 
 ### Design Notes
 - Event names are stable strings; versioning via a `v` field can be added later.

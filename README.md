@@ -1,15 +1,18 @@
 # Real-time AI Meeting Platform
 
 A Google-Meet-inspired platform: create a meeting, share a link, join from the browser
-with video/audio, and get **live speech-to-text** and **live translated captions**.
+with video/audio, **realtime text chat**, **live speech-to-text**, and **live translated
+captions**.
 
 > MVP-first, built on a foundation that scales. See `docs/` for the full design.
 
 ## Stack
-- **Frontend:** SvelteKit + TypeScript (WebRTC + WebSocket client, captions UI)
+- **Frontend:** SvelteKit + TypeScript, **Tailwind CSS v4 + shadcn-svelte** (WebRTC +
+  WebSocket client, chat, captions UI)
 - **Backend:** Go (clean architecture) — REST API + WebSocket signaling/events hub
-- **Database:** PostgreSQL 16 (migrations, indexing)
-- **Proxy:** nginx (single entry, WebSocket upgrade, future TLS/LB)
+- **Database:** PostgreSQL 16 (migrations, indexing) — source of truth
+- **Realtime:** WebSockets + **Redis pub/sub** (chat fan-out, multi-instance ready)
+- **Proxy:** nginx (single public entry, WebSocket upgrade, future TLS/LB)
 - **AI:** pluggable STT + translation providers (`mock` by default, no keys needed)
 - **Observability:** Prometheus + Grafana + Loki + OpenTelemetry (Phase 5)
 
@@ -39,7 +42,9 @@ See `docs/roadmap.md`. Phase 0 (planning) and Phase 1 (foundation) onward.
 
 ## Local development (without Docker)
 - Backend: `cd backend && go run ./cmd/server` (needs a reachable Postgres + `DATABASE_URL`).
-- Frontend: `cd frontend && npm install && npm run dev`.
+  `REDIS_URL` is optional locally — if unset, an in-memory pub/sub broker is used so chat
+  works on a single instance. Set `REDIS_URL` to use Redis (required for multi-instance).
+- Frontend: `cd frontend && npm install && npm run dev` (proxies `/api` + `/ws` to `:8080`).
 
 ## Documentation map
 | Topic | File |
