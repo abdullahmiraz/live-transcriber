@@ -36,7 +36,7 @@ func NewHandler(hub *Hub, meetings *meeting.Service, allowedOrigins []string) *H
 }
 
 func (h *Handler) checkOrigin(r *http.Request) bool {
-	if len(h.allowedOrigins) == 0 {
+	if len(h.allowedOrigins) == 0 || h.allowedOrigins["*"] {
 		return true
 	}
 	origin := r.Header.Get("Origin")

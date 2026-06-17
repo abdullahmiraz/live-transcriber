@@ -48,3 +48,8 @@ func (s *Service) GetBySlug(ctx context.Context, slug string) (*Meeting, error) 
 func (s *Service) End(ctx context.Context, slug string) (*Meeting, error) {
 	return s.repo.End(ctx, slug)
 }
+
+// DeleteBySlug permanently deletes a meeting (and cascaded data).
+func (s *Service) DeleteBySlug(ctx context.Context, slug string) error {
+	return s.repo.DeleteBySlug(ctx, slug)
+}

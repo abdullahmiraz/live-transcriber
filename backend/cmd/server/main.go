@@ -75,7 +75,7 @@ func main() {
 	logger.Info("ai providers initialized", "stt", stt.Name(), "translation", tr.Name())
 
 	// --- Realtime hub ---
-	hub := ws.NewHub(stt, tr, chatSvc, broker, cfg.DefaultTargetLang, metrics, logger)
+	hub := ws.NewHub(stt, tr, chatSvc, meetingSvc, broker, cfg.DefaultTargetLang, metrics, logger)
 	go hub.Run(rootCtx)
 	wsHandler := ws.NewHandler(hub, meetingSvc, cfg.CORSOrigins)
 

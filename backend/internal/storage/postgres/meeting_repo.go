@@ -67,3 +67,15 @@ func (r *MeetingRepo) End(ctx context.Context, slug string) (*meeting.Meeting, e
 	}
 	return m, nil
 }
+
+// DeleteBySlug deletes a meeting row. FK cascades remove participants/messages/transcripts.
+func (r *MeetingRepo) DeleteBySlug(ctx context.Context, slug string) error {
+	res, err := r.pool.Exec(ctx, `DELETE FROM meetings WHERE slug = $1`, slug)
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return meeting.ErrNotFound
+	}
+	return nil
+}
