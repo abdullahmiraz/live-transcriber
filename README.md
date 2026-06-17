@@ -18,6 +18,9 @@ captions**.
 
 ## Quick start (dev — hot reload, no rebuild on code changes)
 
+**Full setup checklist (all features: PC, phone, chat, captions, monitoring):**
+**[`docs/getting-started.md`](docs/getting-started.md)**
+
 ```bash
 cp .env.example .env
 bash scripts/generate-dev-certs.sh   # once — needed for phone camera over Wi‑Fi (HTTPS)
@@ -66,7 +69,8 @@ See **`docs/local-urls.md`** §4 for all dev URLs. Summary:
 ## Documentation map
 | Topic | File |
 |---|---|
-| **Local URLs (start here after `docker compose up`)** | [`docs/local-urls.md`](docs/local-urls.md) |
+| **Getting started (full power checklist)** | [`docs/getting-started.md`](docs/getting-started.md) |
+| **Local URLs (after `docker compose up`)** | [`docs/local-urls.md`](docs/local-urls.md) |
 | Architecture + diagrams | `docs/architecture.md` |
 | Roadmap | `docs/roadmap.md` |
 | Database schema | `docs/database-design.md` |

@@ -1,7 +1,10 @@
 # Local URLs & Access Guide
 
 > Where to go after you start the project — app, health checks, API, WebSocket, metrics,
-> and optional monitoring. **Start here** if you just ran `docker compose up`.
+> and optional monitoring.
+
+**New here?** Start with **[`getting-started.md`](getting-started.md)** for the full-power
+setup checklist, then use this page as a URL reference.
 
 ## 1. Start the stack (dev — hot reload)
 

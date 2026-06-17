@@ -50,8 +50,9 @@ frontend/   SvelteKit app (Tailwind v4 + shadcn-svelte in src/lib/components/ui)
 backend/    Go (cmd/, internal/{config,httpapi,ws,meeting,chat,transcription,translation,
             pubsub,storage,observability,platform}, migrations/)
 infra/      nginx/, monitoring/
-docs/       architecture, roadmap, db, api, docker, local-urls, observability, stt, this file
+docs/       architecture, roadmap, db, api, docker, getting-started, local-urls, observability, stt, this file
             change-history/ — journal of changes + rollback notes (INDEX.md)
+            getting-started.md — full-power setup checklist (start here)
             local-urls.md — where to go after docker compose up (app, health, API, WS, Grafana)
 agents/     architect, backend, frontend, design-system, devops, database, testing
 skills/     architecture-review, docker-setup, api-design, database-design, testing, debugging
@@ -95,6 +96,7 @@ See **`docs/change-history/INDEX.md`** for full journal with rollback steps.
 
 | Date | Summary |
 |------|---------|
+| 2026-06-17 | Meeting control bar, mic wave, user-selected caption translation target → [entry](change-history/entries/2026-06-17-meeting-controls-translation.md) |
 | 2026-06-17 | Dev Docker hot reload, LAN HTTPS, mobile chat/camera, join modes, 10m empty-room delete, theme + video grid fixes → [entry](change-history/entries/2026-06-17-dev-lan-mobile-meeting.md) |
 
 ## Known Issues / Watch List
