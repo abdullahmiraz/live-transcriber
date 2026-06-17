@@ -528,4 +528,65 @@
 		min-height: 44px;
 		min-width: 44px;
 	}
+
+	/* In-call meeting header */
+	.meeting-code-badge {
+		display: inline-block;
+		margin-top: 0.125rem;
+		padding: 0.125rem 0.5rem;
+		border-radius: 0.375rem;
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 0.65rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: var(--primary-foreground);
+		background: color-mix(in oklch, var(--primary) 88%, black);
+		border: 1px solid color-mix(in oklch, var(--primary) 70%, black);
+	}
+
+	.dark .meeting-code-badge {
+		color: var(--foreground);
+		background: color-mix(in oklch, var(--primary) 35%, var(--card));
+		border-color: color-mix(in oklch, var(--primary) 55%, var(--border));
+	}
+
+	/* In-call sidebar: Chat / Captions / People */
+	.meeting-sidebar {
+		display: flex;
+		min-height: 0;
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	@media (max-width: 1023px) {
+		.meeting-sidebar {
+			min-height: min(45vh, 28rem);
+		}
+	}
+
+	.meeting-sidebar-tabs {
+		display: flex;
+		height: 100%;
+		min-height: 0;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.meeting-sidebar-tabs__panels {
+		display: flex;
+		min-height: 0;
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.meeting-sidebar-tabs__panel {
+		display: flex;
+		min-height: 0;
+		flex: 1;
+		flex-direction: column;
+		overflow: hidden;
+		margin-top: 0;
+	}
 }

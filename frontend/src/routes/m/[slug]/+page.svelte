@@ -37,6 +37,7 @@
 	import { getDisplayName, setDisplayName, DEFAULT_GUEST_NAME } from '$lib/meeting/session';
 	import { videoGridClassForCount } from '$lib/meeting/video-grid';
 	import { utf8ToBase64 } from '$lib/utils/encoding';
+	import { cn } from '$lib/utils';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -124,6 +125,15 @@
 	const chatConnected = $derived(status === 'open');
 	const videoTileCount = $derived(1 + remoteTiles.length);
 	const videoGridClass = $derived.by(() => videoGridClassForCount(videoTileCount));
+
+	function sidebarTabClass(tab: MeetingTab): string {
+		return cn(
+			'h-9 w-full rounded-md text-sm font-medium transition-all',
+			activeTab === tab
+				? 'bg-primary text-primary-foreground shadow-sm font-semibold'
+				: 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+		);
+	}
 
 	async function requestMedia(mode: JoinMediaMode) {
 		const result = await requestLocalMedia(joinModeToPrefs(mode));
@@ -574,7 +584,7 @@
 				<div class="bg-border hidden h-5 w-px sm:block"></div>
 				<div class="min-w-0">
 					<strong class="block truncate text-sm font-semibold">{meetingTitle}</strong>
-					<Badge variant="secondary" class="font-mono mt-0.5 text-[0.65rem]">{slug}</Badge>
+					<span class="meeting-code-badge">{slug}</span>
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
@@ -587,7 +597,7 @@
 				<span class="text-muted-foreground hidden text-xs md:inline">
 					Empty rooms auto-delete after <strong class="text-foreground">{EMPTY_ROOM_TTL_MINUTES} minutes</strong>.
 				</span>
-				<Button variant="outline" size="sm" onclick={copyLink} class="touch-target">
+				<Button variant="outline" size="sm" onclick={copyLink} class="touch-target gap-1.5">
 					{#if copied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
 					<span class="hidden sm:inline"> Copy link</span>
 				</Button>
@@ -596,7 +606,7 @@
 		</header>
 
 		<!-- Body -->
-		<div class="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:gap-3 sm:p-3 lg:grid lg:grid-cols-[1fr_380px] lg:grid-rows-1">
+		<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-3 sm:p-3 lg:grid lg:grid-cols-[1fr_380px] lg:grid-rows-1 lg:overflow-hidden">
 			<!-- Video stage: fills column height, tiles scale — no scroll -->
 			<div class="video-stage bg-video-surface max-lg:max-h-[42vh] max-lg:shrink-0 rounded-2xl lg:h-full lg:min-h-0 lg:max-h-none">
 				<div class="video-grid {videoGridClass}">
@@ -645,69 +655,73 @@
 				</div>
 			</div>
 
-			<!-- Sidebar: Chat / Captions / People (theme-aware) -->
+			<!-- Sidebar: Chat / Captions / People -->
 			<aside
-				class="bg-card text-card-foreground flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border shadow-xl lg:max-h-none"
+				class="meeting-sidebar bg-card text-card-foreground rounded-2xl border border-border shadow-xl lg:max-h-none"
 			>
-				<Tabs.Root bind:value={activeTab} class="flex h-full min-h-0 flex-col gap-0">
-					<Tabs.List class="m-2 grid grid-cols-3">
-						<Tabs.Trigger value="chat">Chat</Tabs.Trigger>
-						<Tabs.Trigger value="captions">Captions</Tabs.Trigger>
-						<Tabs.Trigger value="people">People</Tabs.Trigger>
+				<Tabs.Root bind:value={activeTab} class="meeting-sidebar-tabs">
+					<Tabs.List
+						class="mx-2 mt-2 mb-1 grid h-auto min-h-10 w-[calc(100%-1rem)] grid-cols-3 gap-1 bg-muted p-1 shadow-inner"
+					>
+						<Tabs.Trigger value="chat" class={sidebarTabClass('chat')}>Chat</Tabs.Trigger>
+						<Tabs.Trigger value="captions" class={sidebarTabClass('captions')}>Captions</Tabs.Trigger>
+						<Tabs.Trigger value="people" class={sidebarTabClass('people')}>People</Tabs.Trigger>
 					</Tabs.List>
 
-					<Tabs.Content value="chat" class="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-						<Chat messages={chatMessages} {selfId} onSend={sendChat} connected={chatConnected} />
-					</Tabs.Content>
+					<div class="meeting-sidebar-tabs__panels">
+						<Tabs.Content value="chat" class="meeting-sidebar-tabs__panel">
+							<Chat messages={chatMessages} {selfId} onSend={sendChat} connected={chatConnected} />
+						</Tabs.Content>
 
-					<Tabs.Content value="captions" class="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-						<ScrollArea class="min-h-0 flex-1">
-							<div class="flex flex-col gap-3 p-4">
-								{#if captions.length === 0}
-									<p class="text-muted-foreground text-sm leading-relaxed">
-										Turn on captions and start speaking — live transcription and translation appear
-										here.
-									</p>
-								{/if}
-								{#each captions as c (c.key)}
-									<div class="animate-fade-in rounded-xl border bg-muted/40 p-3">
-										<div class="text-primary text-xs font-semibold">{c.name}</div>
-										<div class="mt-1 text-sm leading-relaxed">{c.original}</div>
-										{#if c.translated}
-											<div class="text-success mt-1.5 text-sm italic leading-relaxed">{c.translated}</div>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						</ScrollArea>
-						{#if liveInterim}
-							<div class="text-muted-foreground animate-pulse-soft border-t p-3 text-sm">
-								🎙 {liveInterim}
-							</div>
-						{/if}
-					</Tabs.Content>
-
-					<Tabs.Content value="people" class="mt-0 min-h-0 flex-1 overflow-hidden">
-						<ScrollArea class="h-full">
-							<div class="flex flex-col gap-2 p-4">
-								<div class="flex items-center gap-2.5">
-									<Avatar.Root class="size-8"><Avatar.Fallback class="text-xs">
-										{(displayName[0] ?? '?').toUpperCase()}</Avatar.Fallback></Avatar.Root>
-									<span class="text-sm">{displayName} <span class="text-muted-foreground">(you)</span></span>
+						<Tabs.Content value="captions" class="meeting-sidebar-tabs__panel">
+							<ScrollArea class="min-h-0 flex-1">
+								<div class="flex flex-col gap-3 p-4">
+									{#if captions.length === 0}
+										<p class="text-muted-foreground text-sm leading-relaxed">
+											Turn on captions and start speaking — live transcription and translation appear
+											here.
+										</p>
+									{/if}
+									{#each captions as c (c.key)}
+										<div class="animate-fade-in rounded-xl border bg-muted/40 p-3">
+											<div class="text-primary text-xs font-semibold">{c.name}</div>
+											<div class="mt-1 text-sm leading-relaxed">{c.original}</div>
+											{#if c.translated}
+												<div class="text-success mt-1.5 text-sm italic leading-relaxed">{c.translated}</div>
+											{/if}
+										</div>
+									{/each}
 								</div>
-								{#each roster as p (p.id)}
+							</ScrollArea>
+							{#if liveInterim}
+								<div class="text-muted-foreground animate-pulse-soft shrink-0 border-t p-3 text-sm">
+									🎙 {liveInterim}
+								</div>
+							{/if}
+						</Tabs.Content>
+
+						<Tabs.Content value="people" class="meeting-sidebar-tabs__panel">
+							<ScrollArea class="min-h-0 flex-1">
+								<div class="flex flex-col gap-2 p-4">
 									<div class="flex items-center gap-2.5">
 										<Avatar.Root class="size-8"><Avatar.Fallback class="text-xs">
-											{(p.name[0] ?? '?').toUpperCase()}</Avatar.Fallback></Avatar.Root>
-										<span class="text-sm">{p.name}</span>
+											{(displayName[0] ?? '?').toUpperCase()}</Avatar.Fallback></Avatar.Root>
+										<span class="text-sm">{displayName} <span class="text-muted-foreground">(you)</span></span>
 									</div>
-								{/each}
-								<p class="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
-									<Users class="size-3" /> {roster.length + 1} in call
-								</p>
-							</div>
-						</ScrollArea>
-					</Tabs.Content>
+									{#each roster as p (p.id)}
+										<div class="flex items-center gap-2.5">
+											<Avatar.Root class="size-8"><Avatar.Fallback class="text-xs">
+												{(p.name[0] ?? '?').toUpperCase()}</Avatar.Fallback></Avatar.Root>
+											<span class="text-sm">{p.name}</span>
+										</div>
+									{/each}
+									<p class="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+										<Users class="size-3" /> {roster.length + 1} in call
+									</p>
+								</div>
+							</ScrollArea>
+						</Tabs.Content>
+					</div>
 				</Tabs.Root>
 			</aside>
 		</div>
