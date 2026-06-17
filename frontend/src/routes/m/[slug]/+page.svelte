@@ -24,6 +24,9 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import Chat from '$lib/components/Chat.svelte';
+	import MicControlButton from '$lib/components/meeting/MicControlButton.svelte';
+	import MeetingControlButton from '$lib/components/meeting/MeetingControlButton.svelte';
+	import { MicLevelMonitor } from '$lib/media/mic-level';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import BrandLogo from '$lib/components/layout/BrandLogo.svelte';
 	import ThemeToggle from '$lib/components/layout/ThemeToggle.svelte';
@@ -76,6 +79,7 @@
 	let captionsOn = $state(false);
 	let speechSupported = $state(false);
 	let sourceLang = $state('en-US');
+	let targetLang = $state('ru-RU');
 	let liveInterim = $state('');
 	let copied = $state(false);
 	let activeTab = $state('chat');
@@ -96,6 +100,11 @@
 	const seenChatIds = new Set<string>();
 
 	const langLabel = $derived(LANGS.find((l) => l.code === sourceLang)?.label ?? 'English');
+	const targetLabel = $derived(LANGS.find((l) => l.code === targetLang)?.label ?? 'Russian');
+
+	function langBase(code: string): string {
+		return code.split('-')[0] ?? code;
+	}
 
 	// media + realtime (localStream must be $state for lobby preview)
 	let localStream = $state<MediaStream | null>(null);
@@ -111,6 +120,7 @@
 	let deviceHint = $state('');
 	let chatPollTimer: ReturnType<typeof setInterval> | null = null;
 	let visibilityHandler: (() => void) | null = null;
+	let micLevel = $state(0);
 
 	const chatConnected = $derived(status === 'open');
 	const videoTileCount = $derived(1 + remoteTiles.length);
@@ -198,9 +208,10 @@
 		}
 	}
 
-	function upsertTranscript(p: TranscriptPayload) {
-		const key = `${p.participantId}:${p.seq}`;
-		const name = nameFor(p.participantId);
+	function upsertTranscript(p: TranscriptPayload, from?: string) {
+		const participantId = p.participantId || from || '';
+		const key = `${participantId}:${p.seq}`;
+		const name = nameFor(participantId);
 		const idx = captions.findIndex((c) => c.key === key);
 		if (idx >= 0) {
 			captions[idx] = { ...captions[idx], original: p.text, name };
@@ -208,17 +219,23 @@
 		} else {
 			captions = [
 				...captions,
-				{ key, participantId: p.participantId, name, original: p.text, translated: '' }
+				{ key, participantId, name, original: p.text, translated: '' }
 			].slice(-80);
 		}
 	}
 
-	function applyTranslation(p: TranslationPayload) {
-		const key = `${p.participantId}:${p.seq}`;
+	function applyTranslation(p: TranslationPayload, from?: string) {
+		const participantId = p.participantId || from || '';
+		const key = `${participantId}:${p.seq}`;
 		const idx = captions.findIndex((c) => c.key === key);
 		if (idx >= 0) {
 			captions[idx] = { ...captions[idx], translated: p.text };
 			captions = [...captions];
+		} else {
+			captions = [
+				...captions,
+				{ key, participantId, name: nameFor(participantId), original: '', translated: p.text }
+			].slice(-80);
 		}
 	}
 
@@ -239,10 +256,29 @@
 		speech?.setLang(sourceLang);
 	});
 
+	$effect(() => {
+		if (langBase(sourceLang) === langBase(targetLang)) {
+			const alt = LANGS.find((l) => langBase(l.code) !== langBase(sourceLang));
+			if (alt) targetLang = alt.code;
+		}
+	});
+
 	// Keep preview / in-call video elements in sync with the local stream.
 	$effect(() => {
 		if (localStream && previewVideoEl) previewVideoEl.srcObject = localStream;
 		if (localStream && localVideoEl) localVideoEl.srcObject = localStream;
+	});
+
+	$effect(() => {
+		if (phase !== 'in-call' || !localStream) {
+			micLevel = 0;
+			return;
+		}
+		const monitor = new MicLevelMonitor((l) => {
+			micLevel = l;
+		});
+		monitor.attach(localStream, micOn && hasLocalAudio);
+		return () => monitor.detach();
 	});
 
 	onMount(async () => {
@@ -329,8 +365,8 @@
 		sig.on('room.welcome', (env) => {
 			selfId = (env.payload as WelcomePayload).selfId;
 		});
-		sig.on('transcript.updated', (env) => upsertTranscript(env.payload as TranscriptPayload));
-		sig.on('translation.updated', (env) => applyTranslation(env.payload as TranslationPayload));
+		sig.on('transcript.updated', (env) => upsertTranscript(env.payload as TranscriptPayload, env.from));
+		sig.on('translation.updated', (env) => applyTranslation(env.payload as TranslationPayload, env.from));
 		sig.on('chat.new', (env) => addChatMessage(env.payload as ChatMessage));
 		sig.on('error', (env) => {
 			const p = env.payload as { code?: string; message?: string };
@@ -359,7 +395,12 @@
 				if (isFinal && sig) {
 					sig.send({
 						type: 'speech.received',
-						payload: { audio: utf8ToBase64(text), seq: seq++, lang: sourceLang.split('-')[0] }
+						payload: {
+							audio: utf8ToBase64(text),
+							seq: seq++,
+							lang: langBase(sourceLang),
+							targetLang: langBase(targetLang)
+						}
 					});
 				}
 			},
@@ -694,37 +735,63 @@
 		</div>
 
 		<!-- Controls -->
-		<footer
-			class="bg-background/90 flex justify-center border-t border-border px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:px-4 sm:py-4"
-		>
-			<div class="meeting-control-bar flex max-w-full flex-wrap items-center justify-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3">
-				<Button variant={micOn ? 'secondary' : 'destructive'} onclick={toggleMic} disabled={!hasLocalAudio} class="touch-target rounded-full px-3" title={hasLocalAudio ? undefined : 'Joined without a microphone'}>
-					{#if micOn}<Mic class="size-4" /><span class="hidden sm:inline"> Mute</span>{:else}<MicOff class="size-4" /><span class="hidden sm:inline"> Unmute</span>{/if}
-				</Button>
-				<Button variant={camOn ? 'secondary' : 'destructive'} onclick={toggleCam} disabled={!hasLocalVideo} class="touch-target rounded-full px-3" title={hasLocalVideo ? undefined : 'Joined without a camera'}>
-					{#if camOn}<Video class="size-4" /><span class="hidden sm:inline"> Stop video</span>{:else}<VideoOff class="size-4" /><span class="hidden sm:inline"> Start video</span>{/if}
-				</Button>
-				<Button
-					variant={captionsOn ? 'default' : 'secondary'}
-					onclick={toggleCaptions}
-					disabled={!speechSupported || !ready || !hasLocalAudio}
-					class="touch-target rounded-full px-3"
-				>
-					{#if captionsOn}<Captions class="size-4" /><span class="hidden sm:inline"> Captions on</span>{:else}<CaptionsOff class="size-4" /><span class="hidden sm:inline"> Captions</span>{/if}
-				</Button>
+		<footer class="meeting-controls-footer">
+			<div class="meeting-control-bar">
+				<div class="control-group">
+					<MicControlButton
+						micOn={micOn}
+						level={micLevel}
+						disabled={!hasLocalAudio}
+						onclick={toggleMic}
+					/>
+					<MeetingControlButton
+						variant={camOn ? 'neutral' : 'danger'}
+						disabled={!hasLocalVideo}
+						label={camOn ? 'Stop camera' : 'Start camera'}
+						onclick={toggleCam}
+					>
+						{#if camOn}<Video class="size-[1.125rem]" />{:else}<VideoOff class="size-[1.125rem]" />{/if}
+					</MeetingControlButton>
+				</div>
 
-				<Select.Root type="single" bind:value={sourceLang}>
-					<Select.Trigger class="h-11 w-[120px] rounded-full sm:w-[140px]">{langLabel}</Select.Trigger>
-					<Select.Content>
-						{#each LANGS as l (l.code)}
-							<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+				<div class="control-divider" aria-hidden="true"></div>
 
-				<Button variant="destructive" onclick={leave} class="touch-target rounded-full px-3">
-					<PhoneOff class="size-4" /><span class="hidden sm:inline"> Leave</span>
-				</Button>
+				<div class="control-group">
+					<MeetingControlButton
+						variant={captionsOn ? 'active' : 'neutral'}
+						disabled={!speechSupported || !ready || !hasLocalAudio}
+						label={captionsOn ? 'Turn off captions' : 'Turn on captions'}
+						onclick={toggleCaptions}
+					>
+						{#if captionsOn}<Captions class="size-[1.125rem]" />{:else}<CaptionsOff class="size-[1.125rem]" />{/if}
+					</MeetingControlButton>
+
+					<Select.Root type="single" bind:value={sourceLang}>
+						<Select.Trigger class="control-lang" title="Language you speak">{langLabel}</Select.Trigger>
+						<Select.Content>
+							{#each LANGS as l (l.code)}
+								<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+
+					<span class="text-muted-foreground hidden text-xs sm:inline" aria-hidden="true">→</span>
+
+					<Select.Root type="single" bind:value={targetLang}>
+						<Select.Trigger class="control-lang" title="Translate captions to">{targetLabel}</Select.Trigger>
+						<Select.Content>
+							{#each LANGS as l (l.code)}
+								<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+
+				<div class="control-divider" aria-hidden="true"></div>
+
+				<MeetingControlButton variant="leave" label="Leave meeting" onclick={leave}>
+					<PhoneOff class="size-[1.125rem]" />
+				</MeetingControlButton>
 			</div>
 		</footer>
 	</div>

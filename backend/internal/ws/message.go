@@ -40,9 +40,10 @@ type WelcomePayload struct {
 
 // SpeechReceivedPayload is sent by a client with an audio/text chunk.
 type SpeechReceivedPayload struct {
-	Audio string `json:"audio"` // base64-encoded chunk
-	Seq   int    `json:"seq"`
-	Lang  string `json:"lang"`
+	Audio      string `json:"audio"` // base64-encoded chunk
+	Seq        int    `json:"seq"`
+	Lang       string `json:"lang"`
+	TargetLang string `json:"targetLang,omitempty"`
 }
 
 // TranscriptPayload is broadcast after STT.

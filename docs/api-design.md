@@ -98,7 +98,7 @@ WebRTC signaling (client → server → directed client):
 AI pipeline:
 | type | direction | payload |
 |---|---|---|
-| `speech.received` | client → server | `{ "audio": "<base64 pcm/opus>", "seq": 12, "lang": "en" }` |
+| `speech.received` | client → server | `{ "audio": "<base64 pcm/opus>", "seq": 12, "lang": "en", "targetLang": "ru" }` |
 | `transcript.updated` | server → clients | `{ "participantId","text","lang","isFinal","seq" }` |
 | `translation.updated` | server → clients | `{ "participantId","text","sourceLang","targetLang","seq" }` |
 

@@ -45,6 +45,7 @@ export interface SpeechReceivedPayload {
 	audio: string; // base64
 	seq: number;
 	lang: string;
+	targetLang?: string;
 }
 
 export interface TranscriptPayload {

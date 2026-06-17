@@ -289,13 +289,187 @@
 		color: transparent;
 	}
 
+	.meeting-controls-footer {
+		display: flex;
+		justify-content: center;
+		border-top: 1px solid var(--border);
+		background: color-mix(in oklch, var(--background) 88%, var(--card));
+		padding: 0.625rem 0.75rem;
+		padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+		backdrop-filter: blur(10px);
+	}
+
 	.meeting-control-bar {
-		background: color-mix(in oklch, var(--card) 92%, transparent);
-		backdrop-filter: blur(12px);
-		border: 1px solid var(--border);
+		display: flex;
+		max-width: min(100%, 40rem);
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.625rem;
 		border-radius: 9999px;
-		box-shadow: 0 4px 24px oklch(0 0 0 / 12%);
-		padding-bottom: env(safe-area-inset-bottom, 0px);
+		background: var(--card);
+		border: 1px solid var(--border);
+		box-shadow:
+			0 1px 2px oklch(0 0 0 / 6%),
+			0 10px 28px oklch(0 0 0 / 10%);
+	}
+
+	.dark .meeting-control-bar {
+		background: color-mix(in oklch, var(--card) 92%, black);
+		box-shadow:
+			0 1px 2px oklch(0 0 0 / 25%),
+			0 10px 28px oklch(0 0 0 / 40%);
+	}
+
+	.control-group {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	.control-divider {
+		width: 1px;
+		height: 1.75rem;
+		margin: 0 0.125rem;
+		background: var(--border);
+		flex-shrink: 0;
+	}
+
+	.control-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 2.75rem;
+		height: 2.75rem;
+		padding-inline: 0.625rem;
+		border-radius: 9999px;
+		border: 1px solid transparent;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease,
+			box-shadow 0.15s ease,
+			transform 0.1s ease;
+		cursor: pointer;
+		outline: none;
+	}
+
+	.control-btn:active:not(:disabled) {
+		transform: scale(0.96);
+	}
+
+	.control-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.control-btn--icon {
+		width: 2.75rem;
+		min-width: 2.75rem;
+		padding-inline: 0;
+	}
+
+	.control-btn--mic {
+		position: relative;
+	}
+
+	.mic-wave-overlay {
+		position: absolute;
+		bottom: 0.375rem;
+		left: 50%;
+		display: flex;
+		width: 0.6875rem;
+		align-items: flex-end;
+		justify-content: center;
+		gap: 2px;
+		height: 0.625rem;
+		pointer-events: none;
+		opacity: 1;
+		transform: translateX(-50%);
+		transition: opacity 0.15s ease;
+	}
+
+	.mic-wave-overlay--idle {
+		opacity: 0;
+	}
+
+	.mic-wave-overlay--idle .mic-wave-bar {
+		height: 20% !important;
+	}
+
+	.control-btn--neutral {
+		background: var(--secondary);
+		color: var(--secondary-foreground);
+		border-color: color-mix(in oklch, var(--border) 80%, transparent);
+	}
+
+	.control-btn--neutral:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--secondary) 85%, var(--foreground) 8%);
+	}
+
+	.control-btn--active {
+		background: color-mix(in oklch, var(--primary) 14%, var(--secondary));
+		color: var(--primary);
+		border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
+	}
+
+	.control-btn--on {
+		background: var(--secondary);
+		color: var(--secondary-foreground);
+		border-color: color-mix(in oklch, var(--border) 80%, transparent);
+	}
+
+	.control-btn--on:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--secondary) 88%, var(--foreground) 6%);
+	}
+
+	.control-btn--speaking {
+		background: color-mix(in oklch, var(--primary) 16%, var(--secondary));
+		color: var(--primary);
+		border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+		box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent);
+	}
+
+	.control-btn--off,
+	.control-btn--danger {
+		background: color-mix(in oklch, var(--destructive) 12%, var(--card));
+		color: var(--destructive);
+		border-color: color-mix(in oklch, var(--destructive) 28%, var(--border));
+	}
+
+	.control-btn--off:hover:not(:disabled),
+	.control-btn--danger:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--destructive) 20%, var(--card));
+	}
+
+	.control-btn-leave {
+		background: var(--destructive);
+		color: var(--destructive-foreground);
+		border-color: color-mix(in oklch, var(--destructive) 80%, black);
+	}
+
+	.control-btn-leave:hover:not(:disabled) {
+		background: color-mix(in oklch, var(--destructive) 88%, black);
+	}
+
+	.control-lang {
+		height: 2.75rem;
+		min-width: 6.5rem;
+		border-radius: 9999px;
+		border: 1px solid var(--border);
+		background: var(--secondary);
+		color: var(--secondary-foreground);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		padding-inline: 0.875rem;
+	}
+
+	.mic-wave-bar {
+		width: 3px;
+		min-height: 3px;
+		border-radius: 9999px;
+		background: currentColor;
+		transition: height 0.06s linear;
 	}
 
 	/* In-call video: fill available area — no inner scroll; tiles crop with object-cover */

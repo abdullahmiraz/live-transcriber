@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -239,8 +240,11 @@ func (c *Client) handleSpeech(env Envelope) {
 		}),
 	}), "")
 
-	target := c.hub.defaultTargetLang
-	if target == "" || target == res.Lang {
+	target := p.TargetLang
+	if target == "" {
+		target = c.hub.defaultTargetLang
+	}
+	if target == "" || normalizeLang(target) == normalizeLang(res.Lang) {
 		return
 	}
 	translated, err := c.hub.tr.Translate(ctx, res.Text, res.Lang, target)
@@ -265,4 +269,12 @@ func (c *Client) handleSpeech(env Envelope) {
 			Seq:           p.Seq,
 		}),
 	}), "")
+}
+
+func normalizeLang(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if i := strings.IndexByte(code, '-'); i > 0 {
+		code = code[:i]
+	}
+	return code
 }
