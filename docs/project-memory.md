@@ -50,7 +50,8 @@ frontend/   SvelteKit app (Tailwind v4 + shadcn-svelte in src/lib/components/ui)
 backend/    Go (cmd/, internal/{config,httpapi,ws,meeting,chat,transcription,translation,
             pubsub,storage,observability,platform}, migrations/)
 infra/      nginx/, monitoring/
-docs/       architecture, roadmap, db, api, docker, observability, stt, this file
+docs/       architecture, roadmap, db, api, docker, local-urls, observability, stt, this file
+            change-history/ — journal of changes + rollback notes (INDEX.md)
             local-urls.md — where to go after docker compose up (app, health, API, WS, Grafana)
 agents/     architect, backend, frontend, design-system, devops, database, testing
 skills/     architecture-review, docker-setup, api-design, database-design, testing, debugging
@@ -88,6 +89,14 @@ The metrics middleware wraps `http.ResponseWriter`; the wrapper must implement
 `http.Hijacker` (delegating to the underlying writer) or gorilla's WebSocket upgrade
 fails with 1006. Status: fixed in `internal/httpapi/middleware.go`.
 
+## Recent changes
+
+See **`docs/change-history/INDEX.md`** for full journal with rollback steps.
+
+| Date | Summary |
+|------|---------|
+| 2026-06-17 | Dev Docker hot reload, LAN HTTPS, mobile chat/camera, join modes, 10m empty-room delete, theme + video grid fixes → [entry](change-history/entries/2026-06-17-dev-lan-mobile-meeting.md) |
+
 ## Known Issues / Watch List
 - Mesh WebRTC won't scale past small rooms (by design) — track room sizes.
 - `mock` providers are placeholders; real STT/translation needed for production. The MVP
@@ -97,7 +106,10 @@ fails with 1006. Status: fixed in `internal/httpapi/middleware.go`.
 - **Fixed (2026-06-17):** Meeting room used `data.slug` from load(), but adapter-node SSR
   hydration sent `data: [null,null]` — slug was undefined, API returned 404, lobby never
   appeared. Fixed by reading `page.params.slug` from the URL.
-- Camera/mic require **http://localhost** (or HTTPS) — not plain HTTP on a LAN IP.
+- Camera/mic on **this PC**: `http://localhost` works. On **phones / LAN IPs**: use
+  **`https://<your-pc-lan-ip>/`** after `bash scripts/generate-dev-certs.sh` (self-signed cert).
+- **Dev Docker (2026-06-17):** `docker compose up` is now hot-reload by default (Vite + Air).
+  Production build: `docker-compose.prod.yml`. CORS defaults to `*` for LAN dev.
 - Environment note: Docker Hub was unreachable in the dev sandbox, so `docker compose up`
   image pulls couldn't be exercised here; the compose config is validated and services
   were verified by running them directly. Re-run `docker compose up --build` where Hub is

@@ -11,3 +11,4 @@ Reusable procedures for agents working on this project. Each skill defines:
 | Database Design | `database-design.md` |
 | Testing | `testing.md` |
 | Debugging | `debugging.md` |
+| **Change documentation & history** | `change-documentation.md` |

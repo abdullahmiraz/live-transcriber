@@ -16,23 +16,21 @@ captions**.
 - **AI:** pluggable STT + translation providers (`mock` by default, no keys needed)
 - **Observability:** Prometheus + Grafana + Loki + OpenTelemetry (Phase 5)
 
-## Quick start
+## Quick start (dev — hot reload, no rebuild on code changes)
+
 ```bash
 cp .env.example .env
-docker compose up --build
+bash scripts/generate-dev-certs.sh   # once — needed for phone camera over Wi‑Fi (HTTPS)
+docker compose up --build            # first time only; after that: docker compose up
 ```
 
-Then open the app and ops endpoints (all via nginx on port **80**):
-
-| What | URL |
+| Where | URL |
 |---|---|
-| **App (home)** | [http://localhost/](http://localhost/) |
-| **Meeting room** | `http://localhost/m/{slug}` |
-| **Health (liveness)** | [http://localhost/healthz](http://localhost/healthz) |
-| **Readiness** | [http://localhost/readyz](http://localhost/readyz) |
-| **Metrics** | [http://localhost/metrics](http://localhost/metrics) |
-| **REST API base** | `http://localhost/api` |
-| **WebSocket** | `ws://localhost/ws?meeting={slug}&name={name}` |
+| **This PC** | [http://localhost/](http://localhost/) |
+| **Phone / tablet (same Wi‑Fi)** | `https://<your-pc-lan-ip>/` (accept cert warning once) |
+| **Production build (no hot reload)** | `docker compose -f docker-compose.prod.yml up --build` |
+
+Code changes under `frontend/` and `backend/` reload automatically (Vite HMR + Air).
 
 **Full URL guide** (Docker vs local dev, Grafana overlay, troubleshooting):
 **[`docs/local-urls.md`](docs/local-urls.md)**
@@ -74,6 +72,7 @@ See **`docs/local-urls.md`** §4 for all dev URLs. Summary:
 | Database schema | `docs/database-design.md` |
 | API + WS contracts | `docs/api-design.md` |
 | Docker | `docs/docker-architecture.md` |
+| **Change history (rollback)** | `docs/change-history/INDEX.md` |
 | Observability | `docs/observability.md` |
 | STT/translation decision | `docs/stt-decision.md` |
 | Design system (tokens, typography, motion) | `docs/design-system.md` |

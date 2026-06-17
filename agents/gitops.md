@@ -25,6 +25,11 @@ Behave like a senior DevOps engineer — not just run git commands.
 
 ## Rules
 - All changes on a branch — never push unstable or unreviewed work directly to `main`.
+- **End of task (mandatory check):** run `git status`. If there are meaningful uncommitted
+  changes on a feature branch, **commit in atomic chunks and `git push -u origin HEAD`**
+  unless the user said not to push. Unpushed work is considered incomplete.
+- Other agents: after multi-file features or when the user mentions push/commit/git, follow
+  this file immediately — do not leave work only on disk.
 - Commits: small, atomic, descriptive; use conventional format:
   `feat: …`, `fix: …`, `chore: …`, `docs: …`, `build: …`.
 - May decide: when to branch, how to split commits, rebase vs merge, simple conflict fixes.
