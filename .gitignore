@@ -13,6 +13,7 @@ dist/
 # Go
 backend/bin/
 backend/server
+backend/tmp/
 *.exe
 *.test
 *.out
@@ -28,3 +29,4 @@ Thumbs.db
 
 # Docker volumes (local)
 pgdata/
+infra/nginx/certs/

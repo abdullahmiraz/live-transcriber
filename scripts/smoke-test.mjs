@@ -103,7 +103,9 @@ curlStatus(`${BASE}/`, '200');
 const home = readFileSync(TMP, 'utf8');
 if (home.includes('Create meeting')) ok('home contains Create meeting');
 else bad('home missing Create meeting');
-if (home.includes('href="/_app/')) ok('home uses root-relative assets');
+const isDev = home.includes('__sveltekit_dev');
+if (isDev) ok('home is Vite dev mode (hot reload)');
+else if (home.includes('href="/_app/')) ok('home uses root-relative assets');
 else bad('home asset paths');
 
 console.log('\n--- REST API: meetings ---');
@@ -143,9 +145,18 @@ else bad('messages response shape');
 console.log('\n--- Meeting room page ---');
 curlStatus(`${BASE}/m/${slug}`, '200');
 const room = readFileSync(TMP, 'utf8');
-if (room.includes('href="/_app/')) ok('room page root-relative assets');
+const roomDev = room.includes('__sveltekit_dev');
+if (roomDev) ok('room page is Vite dev mode');
+else if (room.includes('href="/_app/')) ok('room page root-relative assets');
 else bad('room asset paths');
 
+if (roomDev) {
+	const src = curl(['-o', '-', `${BASE}/src/routes/m/%5Bslug%5D/+page.svelte`]).body;
+	if (src.includes('Join with camera')) ok('room source has lobby join UI');
+	else bad('room source missing lobby join UI');
+	if (src.includes('requestLocalMedia') || src.includes('getUserMedia')) ok('room source has media request');
+	else bad('room source missing media request');
+} else {
 const nodeMatch = room.match(/\/_app\/immutable\/nodes\/3\.[^"]+\.js/);
 if (nodeMatch) {
 	const bundle = curl(['-o', '-', `${BASE}${nodeMatch[0]}`]).body;
@@ -167,6 +178,7 @@ if (nodeMatch) {
 			else bad('room bundle missing getUserMedia');
 		} else bad('could not resolve meeting page JS bundle from app entry');
 	} else bad('could not find app entry JS');
+}
 }
 
 console.log('\n--- WebSocket ---');

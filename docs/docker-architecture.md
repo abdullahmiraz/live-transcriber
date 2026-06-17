@@ -20,9 +20,9 @@ flowchart TB
 
 | Service | Image / build | Port | Public? | Purpose |
 |---|---|---|---|---|
-| `nginx` | `nginx:alpine` + config | 80 | **yes** | reverse proxy, WS upgrade, single entry |
-| `frontend` | build `frontend/` | 3000 | no | SvelteKit (Node adapter) |
-| `backend` | build `backend/` | 8080 | no | Go API + WS hub |
+| `nginx` | `nginx:alpine` + config | 80, 443 | **yes** | reverse proxy, WS upgrade, dev TLS |
+| `frontend` | `Dockerfile.dev` (Vite) or prod build | 3000 | no | SvelteKit |
+| `backend` | `Dockerfile.dev` (Air) or prod build | 8080 | no | Go API + WS hub |
 | `postgres` | `postgres:16-alpine` | 5432 | **no** | database (source of truth) |
 | `redis` | `redis:7-alpine` | 6379 | **no** | realtime pub/sub + ephemeral state |
 
@@ -41,9 +41,18 @@ All public URLs use **`http://localhost`** (port 80). Full table: [`docs/local-u
 - `/healthz`, `/readyz`, `/metrics` → `backend:8080` — **ops endpoints**
 
 ## Build Strategy
+
+### Dev (`docker compose up`) — default
+
+- **Backend**: `Dockerfile.dev` — Go toolchain + [Air](https://github.com/air-verse/air) hot reload; source bind-mounted from `./backend`.
+- **Frontend**: `Dockerfile.dev` — Node + `npm run dev` (Vite HMR); source bind-mounted from `./frontend` with a named volume for `node_modules`.
+- **nginx**: `infra/nginx/dev.conf` — proxies to Vite + backend; **HTTPS on :443** with self-signed certs (`bash scripts/generate-dev-certs.sh`) for phone camera/mic on LAN.
+- **No rebuild** needed after code edits — only the first `docker compose up --build`.
+
+### Production (`docker compose -f docker-compose.prod.yml up --build`)
+
 - **Backend**: multi-stage build — `golang:1.26` builder → distroless/alpine runtime.
 - **Frontend**: multi-stage — `node:26` builder → `node:26-alpine` runtime (adapter-node).
-- Dev: bind mounts + hot reload optional later; MVP uses built images.
 
 ## Config & Secrets
 - Environment via `.env` (compose interpolation) — sample provided as `.env.example`.

@@ -3,29 +3,47 @@
 > Where to go after you start the project — app, health checks, API, WebSocket, metrics,
 > and optional monitoring. **Start here** if you just ran `docker compose up`.
 
-## 1. Start the stack
+## 1. Start the stack (dev — hot reload)
 
 ```bash
 cp .env.example .env
-docker compose up --build
+bash scripts/generate-dev-certs.sh   # once — HTTPS for phone camera/mic on Wi‑Fi
+docker compose up --build            # first time; later just: docker compose up
 ```
 
-Wait until all services are healthy, then use the links below. **Only nginx is public**
-(port 80). Postgres and Redis are internal to Docker and have no browser URL.
+Wait until all services are healthy. **Only nginx is public** (ports **80** and **443**).
+Postgres and Redis are internal to Docker.
+
+**Code changes reload automatically** — edit files under `frontend/` (Vite HMR) or
+`backend/` (Air) without rebuilding images.
+
+Production build (no hot reload): `docker compose -f docker-compose.prod.yml up --build`
 
 ---
 
-## 2. Docker Compose (recommended) — base: `http://localhost`
+## 2. URLs — this PC and same Wi‑Fi (phones / tablets)
 
-All traffic goes through **nginx on port 80**. Use these URLs in your browser or with
-`curl`.
+| Device | URL | Camera / mic |
+|---|---|---|
+| **This PC** | [http://localhost/](http://localhost/) or `https://localhost/` | Works on HTTP (localhost is a secure context) |
+| **Phone / tablet (same Wi‑Fi)** | `https://<your-pc-lan-ip>/` | **Must use HTTPS** — accept the self-signed cert warning once |
+
+Find your PC’s LAN IP:
+
+- **Windows:** `ipconfig` → IPv4 Address (e.g. `192.168.1.42`)
+- **macOS / Linux:** `ip addr` or System Settings → Network
+
+Example: `https://192.168.1.42/m/abc-defg-hij`
+
+Join links copied in-call use the browser’s current origin, so sharing from a phone
+over HTTPS produces an HTTPS link for other devices.
 
 ### Application (browser)
 
 | What | URL | Notes |
 |---|---|---|
 | **Home / landing page** | [http://localhost/](http://localhost/) | Create a meeting or join with a code |
-| **Meeting room** | [http://localhost/m/{slug}](http://localhost/m/example-slug) | Replace `{slug}` with your meeting code (e.g. `abc-defg-hij`) |
+| **Meeting room** | `http://localhost/m/{slug}` or `https://<lan-ip>/m/{slug}` | Replace `{slug}` with your meeting code |
 | **Example after create** | `http://localhost/m/abc-defg-hij` | Shown in the API response as `join_url` |
 
 **Typical flow**
@@ -167,7 +185,8 @@ have a specific debugging need.
 
 | Port | Service (when running) | Public? |
 |---|---|---|
-| **80** | nginx → app + API + WS + health + metrics | **Yes** — main entry |
+| **80** | nginx → app + API + WS + health + metrics | **Yes** — HTTP entry |
+| **443** | nginx → app + API + WS (HTTPS, dev certs) | **Yes** — use for phones on Wi‑Fi |
 | **3000** | Vite dev **or** frontend container (internal in Docker) | Dev only (direct) |
 | **8080** | Go backend (direct in local dev) | Dev only (direct) |
 | **3001** | Grafana (monitoring overlay) | Optional overlay |
@@ -187,8 +206,11 @@ have a specific debugging need.
 | API 404 on `/api/...` | Use `/api/meetings`, not `/meetings` (nginx routes `/api/` to backend) |
 | WebSocket fails | Ensure URL is `ws://localhost/ws` (through nginx), not a stale port |
 | Camera/mic prompt missing | Click **Join with camera & microphone** on the lobby screen (user gesture required) |
-| Meeting page blank after Create | Hard-refresh after `docker compose up --build`; slug must come from URL (`page.params`), not load data |
-| Camera blocked on IP address | Use **http://localhost** not `http://192.168.x.x` — browsers require HTTPS or localhost for getUserMedia |
+| Meeting page blank after Create | Hard-refresh; slug must come from URL (`page.params`), not load data |
+| Camera blocked on phone / LAN IP | Use **`https://<your-pc-lan-ip>/`** (not `http://192.168.x.x`) — run `bash scripts/generate-dev-certs.sh` first |
+| Certificate warning on phone | Expected for self-signed dev certs — tap Advanced → Proceed once per device |
+| Changes not appearing | Dev stack uses bind mounts + hot reload — use `docker compose up`, not `docker-compose.prod.yml` |
+| Phone cannot reach PC at all | Windows Firewall may block inbound :80/:443 — allow Docker Desktop or add rules for ports 80 and 443 |
 | Grafana empty | Start the monitoring overlay; confirm backend metrics at [http://localhost/metrics](http://localhost/metrics) |
 
 ---

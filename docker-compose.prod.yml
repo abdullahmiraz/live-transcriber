@@ -1,12 +1,6 @@
-# Real-time AI Meeting Platform — dev stack with hot reload.
-# Usage:
-#   cp .env.example .env
-#   bash scripts/generate-dev-certs.sh    # once, for phone camera over Wi‑Fi (HTTPS)
-#   docker compose up --build
-# Production (no hot reload): docker compose -f docker-compose.prod.yml up --build
-# Networking: only `nginx` publishes a port. postgres and redis have NO `ports` mapping,
-# so they are reachable only on the private compose network — never exposed publicly.
-# Data safety: postgres and redis both persist to named volumes and survive restart/rebuild.
+# Production stack (built images, no hot reload):
+#   bash scripts/generate-dev-certs.sh   # optional; only if using HTTPS
+#   docker compose -f docker-compose.prod.yml up --build
 
 services:
   postgres:
@@ -26,7 +20,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Append-only file for durability; data persists to the redis_data volume.
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -38,11 +31,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./backend:/app
+    build: ./backend
     environment:
       PORT: "8080"
       DATABASE_URL: postgres://${POSTGRES_USER:-meetuser}:${POSTGRES_PASSWORD:-meetpass}@postgres:5432/${POSTGRES_DB:-meetings}?sslmode=disable
@@ -62,23 +51,11 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+    build: ./frontend
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: production
       PORT: "3000"
       HOST: 0.0.0.0
-      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
-      WATCHPACK_POLLING: "true"
-      VITE_BACKEND_URL: http://backend:8080
-      VITE_BACKEND_WS: ws://backend:8080
-      VITE_HMR_CLIENT_PORT: "443"
-      VITE_HMR_PROTOCOL: wss
-    command: npm run dev -- --host 0.0.0.0 --port 3000
     depends_on:
       - backend
     restart: unless-stopped
@@ -87,10 +64,8 @@ services:
     image: nginx:alpine
     ports:
       - "0.0.0.0:80:80"
-      - "0.0.0.0:443:443"
     volumes:
-      - ./infra/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./infra/nginx/certs:/etc/nginx/certs:ro
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - frontend
       - backend
@@ -99,4 +74,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  frontend_node_modules:
