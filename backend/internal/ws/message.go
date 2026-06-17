@@ -21,6 +21,8 @@ const (
 	TypeSpeechReceived     = "speech.received"
 	TypeTranscriptUpdated  = "transcript.updated"
 	TypeTranslationUpdated = "translation.updated"
+	TypeChatMessage        = "chat.message"
+	TypeChatNew            = "chat.new"
 	TypeError              = "error"
 )
 
@@ -59,6 +61,11 @@ type TranslationPayload struct {
 	SourceLang    string `json:"sourceLang"`
 	TargetLang    string `json:"targetLang"`
 	Seq           int    `json:"seq"`
+}
+
+// ChatMessagePayload is sent by a client to post a chat message (text-only).
+type ChatMessagePayload struct {
+	Content string `json:"content"`
 }
 
 // ErrorPayload describes a protocol error sent back to a client.
