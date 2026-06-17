@@ -1,6 +1,6 @@
 # Real-time AI Meeting Platform — full stack.
 # Usage: cp .env.example .env && docker compose up --build
-# Open http://localhost
+# URLs: docs/local-urls.md  |  App: http://localhost/
 #
 # Networking: only `nginx` publishes a port. postgres and redis have NO `ports` mapping,
 # so they are reachable only on the private compose network — never exposed publicly.

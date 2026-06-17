@@ -3,6 +3,8 @@
 Lightweight Grafana stack: **Prometheus** (metrics), **Loki** (logs), **Promtail**
 (log shipping), **Grafana** (dashboards). See `docs/observability.md` for the design.
 
+> Full URL reference (app + ops + monitoring): [`docs/local-urls.md`](../../docs/local-urls.md)
+
 ## Run
 
 ```bash
