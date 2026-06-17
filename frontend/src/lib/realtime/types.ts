@@ -68,16 +68,11 @@ export interface ChatMessageOutPayload {
 	content: string;
 }
 
-export interface ChatMessage {
-	id: string;
-	meetingId: string;
-	senderId: string;
-	senderName: string;
-	content: string;
-	createdAt: string;
-}
+export type { ChatMessage } from '$lib/api/types';
 
 export interface ErrorPayload {
 	code: string;
 	message: string;
 }
+
+export type WsConnectionStatus = 'connecting' | 'open' | 'closed';

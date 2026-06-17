@@ -1,0 +1,9 @@
+[
+	{ "code": "en-US", "label": "English" },
+	{ "code": "ru-RU", "label": "Russian" },
+	{ "code": "es-ES", "label": "Spanish" },
+	{ "code": "fr-FR", "label": "French" },
+	{ "code": "de-DE", "label": "German" },
+	{ "code": "zh-CN", "label": "Chinese" },
+	{ "code": "ja-JP", "label": "Japanese" }
+]

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Mic, MicOff } from '@lucide/svelte';
+	import { MIC_SPEAKING_THRESHOLD } from '$lib/media/constants';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -27,7 +28,7 @@
 		return () => cancelAnimationFrame(raf);
 	});
 
-	const speaking = $derived(micOn && !disabled && level > 0.06);
+	const speaking = $derived(micOn && !disabled && level > MIC_SPEAKING_THRESHOLD);
 
 	function barHeight(index: number): string {
 		if (!speaking) return '20%';

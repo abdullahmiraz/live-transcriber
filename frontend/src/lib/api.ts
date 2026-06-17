@@ -1,18 +1,10 @@
 // Thin REST client for the meetings API. Uses relative paths so it works behind nginx
 // and via the Vite dev proxy.
 
-const API_BASE = '/api';
+import { API_BASE } from '$lib/config/app';
+import type { ChatMessage, Meeting } from '$lib/api/types';
 
-export interface Meeting {
-	id: string;
-	slug: string;
-	title: string;
-	host_name: string;
-	status: string;
-	join_url: string;
-	created_at: string;
-	ended_at?: string;
-}
+export type { ChatMessage, Meeting, MeetingStatus } from '$lib/api/types';
 
 interface ApiErrorBody {
 	error?: { code: string; message: string };
@@ -54,15 +46,6 @@ export async function endMeeting(slug: string): Promise<Meeting> {
 		method: 'POST'
 	});
 	return handle<Meeting>(res);
-}
-
-export interface ChatMessage {
-	id: string;
-	meetingId: string;
-	senderId: string;
-	senderName: string;
-	content: string;
-	createdAt: string;
 }
 
 export async function listMessages(

@@ -1,4 +1,5 @@
-import type { Envelope, EventType } from './types';
+import type { Envelope, EventType, WsConnectionStatus } from './types';
+import { WS_RECONNECT_INITIAL_MS, WS_RECONNECT_MAX_MS } from './constants';
 
 type Handler = (env: Envelope) => void;
 
@@ -18,9 +19,9 @@ export class SignalingClient {
 	private readonly handlers = new Map<EventType, Set<Handler>>();
 	private outbox: string[] = [];
 	private shouldReconnect = true;
-	private reconnectDelay = 1000;
+	private reconnectDelay = WS_RECONNECT_INITIAL_MS;
 
-	onStatusChange?: (status: 'connecting' | 'open' | 'closed') => void;
+	onStatusChange?: (status: WsConnectionStatus) => void;
 	/** Fires after each successful WebSocket open (initial + reconnect). */
 	onOpen?: () => void;
 
@@ -34,7 +35,7 @@ export class SignalingClient {
 		this.ws = ws;
 
 		ws.onopen = () => {
-			this.reconnectDelay = 1000;
+			this.reconnectDelay = WS_RECONNECT_INITIAL_MS;
 			this.onStatusChange?.('open');
 			for (const msg of this.outbox) ws.send(msg);
 			this.outbox = [];
@@ -56,7 +57,7 @@ export class SignalingClient {
 			this.onStatusChange?.('closed');
 			if (this.shouldReconnect) {
 				setTimeout(() => this.connect(), this.reconnectDelay);
-				this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10000);
+				this.reconnectDelay = Math.min(this.reconnectDelay * 2, WS_RECONNECT_MAX_MS);
 			}
 		};
 

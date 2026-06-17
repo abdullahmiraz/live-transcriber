@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { createMeeting } from '$lib/api';
+	import { meetingPath, parseMeetingSlug } from '$lib/meeting/routes';
+	import { setDisplayName, DEFAULT_GUEST_NAME, DEFAULT_HOST_NAME } from '$lib/meeting/session';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -26,9 +28,8 @@
 		creating = true;
 		try {
 			const m = await createMeeting({ title, host_name: name });
-			sessionStorage.setItem('displayName', name.trim() || 'Host');
-			// Full navigation avoids stale client bundles on nested /m/ routes.
-			window.location.assign(`/m/${m.slug}`);
+			setDisplayName(name, DEFAULT_HOST_NAME);
+			window.location.assign(meetingPath(m.slug));
 		} catch (e) {
 			toast.error((e as Error).message || 'Could not create meeting');
 		} finally {
@@ -37,14 +38,13 @@
 	}
 
 	function handleJoin() {
-		const raw = joinCode.trim();
-		if (!raw) {
+		const slug = parseMeetingSlug(joinCode);
+		if (!slug) {
 			toast.error('Enter a meeting code or link');
 			return;
 		}
-		const slug = raw.includes('/m/') ? raw.split('/m/')[1].split(/[?#]/)[0] : raw;
-		sessionStorage.setItem('displayName', name.trim() || 'Guest');
-		window.location.assign(`/m/${slug}`);
+		setDisplayName(name, DEFAULT_GUEST_NAME);
+		window.location.assign(meetingPath(slug));
 	}
 </script>
 

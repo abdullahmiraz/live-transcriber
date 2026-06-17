@@ -5,6 +5,7 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Send } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
+	import { CHAT_MAX_CONTENT_LENGTH } from '$lib/meeting/constants';
 	import type { ChatMessage } from '$lib/api';
 
 	let {
@@ -124,7 +125,7 @@
 				autocapitalize="sentences"
 				enterkeyhint="send"
 				inputmode="text"
-				maxlength={4000}
+				maxlength={CHAT_MAX_CONTENT_LENGTH}
 				class="min-h-11 flex-1 rounded-full text-base"
 				onkeydown={onKeydown}
 			/>

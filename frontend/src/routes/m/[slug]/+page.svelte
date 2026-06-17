@@ -11,8 +11,32 @@
 		WelcomePayload,
 		TranscriptPayload,
 		TranslationPayload,
-		PeerInfo
+		PeerInfo,
+		WsConnectionStatus
 	} from '$lib/realtime/types';
+	import {
+		LANGUAGES,
+		DEFAULT_SOURCE_LANG,
+		DEFAULT_TARGET_LANG,
+		langBase,
+		languageLabel,
+		firstLanguageOtherThan
+	} from '$lib/config/languages';
+	import type { JoinMediaMode, MeetingPhase, MeetingTab, VideoTile, Caption } from '$lib/meeting/types';
+	import {
+		CHAT_HISTORY_LIMIT,
+		CHAT_POLL_INTERVAL_MS,
+		MAX_CAPTIONS,
+		COPY_LINK_FEEDBACK_MS,
+		DEFAULT_MEETING_TITLE,
+		DEFAULT_MEETING_TAB,
+		EMPTY_ROOM_TTL_MINUTES,
+		emptyRoomLeaveMessage
+	} from '$lib/meeting/constants';
+	import { joinModeToPrefs } from '$lib/meeting/join-media';
+	import { getDisplayName, setDisplayName, DEFAULT_GUEST_NAME } from '$lib/meeting/session';
+	import { videoGridClassForCount } from '$lib/meeting/video-grid';
+	import { utf8ToBase64 } from '$lib/utils/encoding';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -48,27 +72,14 @@
 		MessagesSquare
 	} from '@lucide/svelte';
 
-	type Phase = 'loading' | 'lobby' | 'joining' | 'in-call' | 'error';
-	type JoinMediaMode = 'both' | 'audio' | 'video' | 'none';
-
 	// Slug from the URL — do NOT use load() data (adapter-node SSR sends data: [null,null]).
 	const slug = $derived(String(page.params.slug ?? ''));
 
-	const LANGS = [
-		{ code: 'en-US', label: 'English' },
-		{ code: 'ru-RU', label: 'Russian' },
-		{ code: 'es-ES', label: 'Spanish' },
-		{ code: 'fr-FR', label: 'French' },
-		{ code: 'de-DE', label: 'German' },
-		{ code: 'zh-CN', label: 'Chinese' },
-		{ code: 'ja-JP', label: 'Japanese' }
-	];
-
 	// reactive UI state
-	let displayName = $state('Guest');
-	let meetingTitle = $state('Meeting');
-	let phase = $state<Phase>('loading');
-	let status = $state<'connecting' | 'open' | 'closed'>('connecting');
+	let displayName = $state(DEFAULT_GUEST_NAME);
+	let meetingTitle = $state(DEFAULT_MEETING_TITLE);
+	let phase = $state<MeetingPhase>('loading');
+	let status = $state<WsConnectionStatus>('connecting');
 	let loadError = $state('');
 	let mediaError = $state('');
 	let ready = $state(false);
@@ -78,33 +89,21 @@
 	let camOn = $state(true);
 	let captionsOn = $state(false);
 	let speechSupported = $state(false);
-	let sourceLang = $state('en-US');
-	let targetLang = $state('ru-RU');
+	let sourceLang = $state(DEFAULT_SOURCE_LANG);
+	let targetLang = $state(DEFAULT_TARGET_LANG);
 	let liveInterim = $state('');
 	let copied = $state(false);
-	let activeTab = $state('chat');
+	let activeTab = $state<MeetingTab>(DEFAULT_MEETING_TAB);
 
-	type Tile = { id: string; name: string; stream: MediaStream };
-	let remoteTiles = $state<Tile[]>([]);
+	let remoteTiles = $state<VideoTile[]>([]);
 
-	type Caption = {
-		key: string;
-		participantId: string;
-		name: string;
-		original: string;
-		translated: string;
-	};
 	let captions = $state<Caption[]>([]);
 	let roster = $state<PeerInfo[]>([]);
 	let chatMessages = $state<ChatMessage[]>([]);
 	const seenChatIds = new Set<string>();
 
-	const langLabel = $derived(LANGS.find((l) => l.code === sourceLang)?.label ?? 'English');
-	const targetLabel = $derived(LANGS.find((l) => l.code === targetLang)?.label ?? 'Russian');
-
-	function langBase(code: string): string {
-		return code.split('-')[0] ?? code;
-	}
+	const langLabel = $derived(languageLabel(sourceLang));
+	const targetLabel = $derived(languageLabel(targetLang));
 
 	// media + realtime (localStream must be $state for lobby preview)
 	let localStream = $state<MediaStream | null>(null);
@@ -124,38 +123,19 @@
 
 	const chatConnected = $derived(status === 'open');
 	const videoTileCount = $derived(1 + remoteTiles.length);
-	const videoGridClass = $derived.by(() => {
-		const n = videoTileCount;
-		if (n <= 1) return 'grid-cols-1 grid-rows-1';
-		if (n === 2) return 'grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1';
-		if (n <= 4) return 'grid-cols-2 grid-rows-2';
-		if (n <= 6) return 'grid-cols-2 grid-rows-3 lg:grid-cols-3 lg:grid-rows-2';
-		return 'grid-cols-3 grid-rows-3';
-	});
+	const videoGridClass = $derived.by(() => videoGridClassForCount(videoTileCount));
 
 	async function requestMedia(mode: JoinMediaMode) {
-		const prefs =
-			mode === 'none'
-				? { audio: false, video: false }
-				: mode === 'audio'
-					? { audio: true, video: false }
-					: mode === 'video'
-						? { audio: false, video: true }
-						: { audio: true, video: true };
-		const result = await requestLocalMedia(prefs);
+		const result = await requestLocalMedia(joinModeToPrefs(mode));
 		camOn = result.hasVideo;
 		micOn = result.hasAudio;
 		if (result.note) toast.info(result.note);
 		return result.stream;
 	}
 
-	function utf8ToBase64(s: string): string {
-		return btoa(String.fromCharCode(...new TextEncoder().encode(s)));
-	}
-
 	function nameFor(id: string): string {
 		if (id === selfId) return `${displayName} (you)`;
-		return roster.find((p) => p.id === id)?.name ?? 'Guest';
+		return roster.find((p) => p.id === id)?.name ?? DEFAULT_GUEST_NAME;
 	}
 
 	function addChatMessage(m: ChatMessage) {
@@ -176,7 +156,7 @@
 	async function syncChatHistory() {
 		if (!slug) return;
 		try {
-			const history = await listMessages(slug, { limit: 50 });
+			const history = await listMessages(slug, { limit: CHAT_HISTORY_LIMIT });
 			for (const m of history) addChatMessage(m);
 		} catch {
 			// non-fatal
@@ -188,7 +168,7 @@
 		// Fallback for mobile browsers that suspend WebSockets (background tab / flaky LAN).
 		chatPollTimer = setInterval(() => {
 			if (phase === 'in-call') void syncChatHistory();
-		}, 4000);
+		}, CHAT_POLL_INTERVAL_MS);
 		visibilityHandler = () => {
 			if (document.visibilityState !== 'visible' || phase !== 'in-call') return;
 			sig?.reconnectIfNeeded();
@@ -220,7 +200,7 @@
 			captions = [
 				...captions,
 				{ key, participantId, name, original: p.text, translated: '' }
-			].slice(-80);
+			].slice(-MAX_CAPTIONS);
 		}
 	}
 
@@ -235,7 +215,7 @@
 			captions = [
 				...captions,
 				{ key, participantId, name: nameFor(participantId), original: '', translated: p.text }
-			].slice(-80);
+			].slice(-MAX_CAPTIONS);
 		}
 	}
 
@@ -258,7 +238,7 @@
 
 	$effect(() => {
 		if (langBase(sourceLang) === langBase(targetLang)) {
-			const alt = LANGS.find((l) => langBase(l.code) !== langBase(sourceLang));
+			const alt = firstLanguageOtherThan(sourceLang);
 			if (alt) targetLang = alt.code;
 		}
 	});
@@ -283,7 +263,7 @@
 
 	onMount(async () => {
 		speechSupported = SpeechCapture.isSupported();
-		displayName = sessionStorage.getItem('displayName') || 'Guest';
+		displayName = getDisplayName();
 
 		if (!slug) {
 			loadError = 'Invalid meeting link.';
@@ -293,7 +273,7 @@
 
 		try {
 			const m = await getMeeting(slug);
-			meetingTitle = m.title || 'Meeting';
+			meetingTitle = m.title || DEFAULT_MEETING_TITLE;
 			if (m.status === 'ended') {
 				loadError = 'This meeting has already ended.';
 				phase = 'error';
@@ -329,8 +309,8 @@
 		mediaError = '';
 		phase = 'joining';
 
-		sessionStorage.setItem('displayName', displayName.trim() || 'Guest');
-		displayName = displayName.trim() || 'Guest';
+		setDisplayName(displayName);
+		displayName = getDisplayName();
 
 		mediaPromise
 			.then(async (stream) => {
@@ -448,15 +428,13 @@
 			await navigator.clipboard.writeText(location.href);
 			copied = true;
 			toast.success('Meeting link copied');
-			setTimeout(() => (copied = false), 1500);
+			setTimeout(() => (copied = false), COPY_LINK_FEEDBACK_MS);
 		} catch {
 			toast.error('Could not copy link');
 		}
 	}
 	function leave() {
-		const msg =
-			'If everyone leaves this meeting, the room will be deleted automatically after 10 minutes of being empty.';
-		if (!confirm(`Leave meeting?\n\n${msg}`)) return;
+		if (!confirm(`Leave meeting?\n\n${emptyRoomLeaveMessage()}`)) return;
 		goto('/');
 	}
 </script>
@@ -607,7 +585,7 @@
 					{status}
 				</Badge>
 				<span class="text-muted-foreground hidden text-xs md:inline">
-					Empty rooms auto-delete after <strong class="text-foreground">10 minutes</strong>.
+					Empty rooms auto-delete after <strong class="text-foreground">{EMPTY_ROOM_TTL_MINUTES} minutes</strong>.
 				</span>
 				<Button variant="outline" size="sm" onclick={copyLink} class="touch-target">
 					{#if copied}<Check class="size-4" />{:else}<Copy class="size-4" />{/if}
@@ -769,7 +747,7 @@
 					<Select.Root type="single" bind:value={sourceLang}>
 						<Select.Trigger class="control-lang" title="Language you speak">{langLabel}</Select.Trigger>
 						<Select.Content>
-							{#each LANGS as l (l.code)}
+							{#each LANGUAGES as l (l.code)}
 								<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
 							{/each}
 						</Select.Content>
@@ -780,7 +758,7 @@
 					<Select.Root type="single" bind:value={targetLang}>
 						<Select.Trigger class="control-lang" title="Translate captions to">{targetLabel}</Select.Trigger>
 						<Select.Content>
-							{#each LANGS as l (l.code)}
+							{#each LANGUAGES as l (l.code)}
 								<Select.Item value={l.code} label={l.label}>{l.label}</Select.Item>
 							{/each}
 						</Select.Content>

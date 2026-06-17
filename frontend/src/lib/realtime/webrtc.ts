@@ -7,9 +7,8 @@ import type {
 	SignalAnswerPayload,
 	SignalICEPayload
 } from './types';
-
-// MVP uses a public STUN server only. Add a TURN server here for restrictive NATs.
-const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+import { ICE_SERVERS } from './constants';
+import { DEFAULT_GUEST_NAME } from '$lib/meeting/session';
 
 interface PeerState {
 	pc: RTCPeerConnection;
@@ -88,7 +87,7 @@ export class MeshManager {
 		if (!from) return;
 		const p = env.payload as SignalOfferPayload;
 		let state = this.peers.get(from);
-		if (!state) state = this.createPeer(from, this.names.get(from) ?? 'Guest');
+		if (!state) state = this.createPeer(from, this.names.get(from) ?? DEFAULT_GUEST_NAME);
 		await state.pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
 		state.remoteSet = true;
 		await this.flushCandidates(state);
