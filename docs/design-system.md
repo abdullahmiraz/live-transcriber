@@ -8,13 +8,15 @@
 Live Meet is a **practical meeting product** — calm, readable, and consistent across pages.
 Visual language: modern SaaS (Linear/Meet-inspired), not flashy.
 
-| Principle | Rule |
-|---|---|
-| Clarity | High contrast body text; muted text only for secondary info |
-| Consistency | Use CSS variables + shared layout components — no one-off hex colors |
-| Motion | Subtle enter animations only; no heavy parallax or long transitions |
-| Theme | **Light + dark** via `mode-watcher` (default: system preference) |
-| Video UI | In-call room uses a dedicated dark **video surface** regardless of theme |
+
+| Principle   | Rule                                                                     |
+| ----------- | ------------------------------------------------------------------------ |
+| Clarity     | High contrast body text; muted text only for secondary info              |
+| Consistency | Use CSS variables + shared layout components — no one-off hex colors     |
+| Motion      | Subtle enter animations only; no heavy parallax or long transitions      |
+| Theme       | **Light + dark** via `mode-watcher` (default: system preference)         |
+| Video UI    | In-call room uses a dedicated dark **video surface** regardless of theme |
+
 
 ## 2. Color palette
 
@@ -23,19 +25,21 @@ All colors are defined as OKLCH CSS variables in `frontend/src/app.css`.
 
 ### Semantic tokens
 
-| Token | Usage |
-|---|---|
-| `background` / `foreground` | Page canvas and primary text |
-| `card` / `card-foreground` | Elevated panels, sidebar in call |
-| `primary` / `primary-foreground` | CTAs, brand accent, own chat bubbles |
-| `secondary` | Secondary buttons, badges |
-| `muted` / `muted-foreground` | Subtle fills, helper text, others' chat bubbles |
-| `accent` | Hover states, highlights |
-| `destructive` | Errors, leave/end, muted mic/cam |
-| `success` | Translated captions, positive states |
-| `border` / `input` / `ring` | Borders, inputs, focus rings |
-| `surface-elevated` | Homepage/lobby cards (`.surface-card`) |
-| `video-surface` | In-call background and camera preview wells |
+
+| Token                            | Usage                                           |
+| -------------------------------- | ----------------------------------------------- |
+| `background` / `foreground`      | Page canvas and primary text                    |
+| `card` / `card-foreground`       | Elevated panels, sidebar in call                |
+| `primary` / `primary-foreground` | CTAs, brand accent, own chat bubbles            |
+| `secondary`                      | Secondary buttons, badges                       |
+| `muted` / `muted-foreground`     | Subtle fills, helper text, others' chat bubbles |
+| `accent`                         | Hover states, highlights                        |
+| `destructive`                    | Errors, leave/end, muted mic/cam                |
+| `success`                        | Translated captions, positive states            |
+| `border` / `input` / `ring`      | Borders, inputs, focus rings                    |
+| `surface-elevated`               | Homepage/lobby cards (`.surface-card`)          |
+| `video-surface`                  | In-call background and camera preview wells     |
+
 
 ### Brand gradient
 
@@ -56,22 +60,26 @@ All colors are defined as OKLCH CSS variables in `frontend/src/app.css`.
 
 ## 3. Typography
 
-| Role | Font | Tailwind |
-|---|---|---|
+
+| Role          | Font                  | Tailwind                        |
+| ------------- | --------------------- | ------------------------------- |
 | UI / headings | **Plus Jakarta Sans** | `font-sans` (default on `body`) |
-| Codes / slugs | **JetBrains Mono** | `font-mono` |
+| Codes / slugs | **JetBrains Mono**    | `font-mono`                     |
+
 
 Loaded in `frontend/src/app.html`. Headings use `tracking-tight` and slightly tighter letter-spacing via base CSS.
 
 ### Scale (common)
 
-| Element | Classes |
-|---|---|
-| Hero H1 | `text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]` |
-| Page title | `text-xl font-semibold` |
-| Body | `text-sm` or `text-base leading-relaxed` |
-| Helper | `text-muted-foreground text-xs` |
-| Meeting slug | `font-mono text-[0.65rem]` |
+
+| Element      | Classes                                                       |
+| ------------ | ------------------------------------------------------------- |
+| Hero H1      | `text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]` |
+| Page title   | `text-xl font-semibold`                                       |
+| Body         | `text-sm` or `text-base leading-relaxed`                      |
+| Helper       | `text-muted-foreground text-xs`                               |
+| Meeting slug | `font-mono text-[0.65rem]`                                    |
+
 
 ## 4. Spacing & layout
 
@@ -83,24 +91,28 @@ Loaded in `frontend/src/app.html`. Headings use `tracking-tight` and slightly ti
 
 ### Shared layout components
 
-| Component | Path | Use |
-|---|---|---|
-| `BrandLogo` | `lib/components/layout/BrandLogo.svelte` | Logo + wordmark; props: `compact`, `inverted` |
-| `ThemeToggle` | `lib/components/layout/ThemeToggle.svelte` | Light/dark toggle |
-| `AppHeader` | `lib/components/layout/AppHeader.svelte` | Logo + theme + optional slot |
-| `PageStage` | `lib/components/layout/PageStage.svelte` | Route-keyed page enter animation |
+
+| Component     | Path                                       | Use                                           |
+| ------------- | ------------------------------------------ | --------------------------------------------- |
+| `BrandLogo`   | `lib/components/layout/BrandLogo.svelte`   | Logo + wordmark; props: `compact`, `inverted` |
+| `ThemeToggle` | `lib/components/layout/ThemeToggle.svelte` | Light/dark toggle                             |
+| `AppHeader`   | `lib/components/layout/AppHeader.svelte`   | Logo + theme + optional slot                  |
+| `PageStage`   | `lib/components/layout/PageStage.svelte`   | Route-keyed page enter animation              |
+
 
 ## 5. Motion
 
 Defined in `app.css` — lightweight CSS keyframes only (no animation library).
 
-| Utility | Duration | Use |
-|---|---|---|
-| `.animate-page-enter` | 400ms fade-in-up | Route changes (`PageStage`) |
-| `.animate-fade-in-up` | 450ms | Hero sections |
-| `.animate-scale-in` | 300ms | Cards/modals appearing |
-| `.animate-stagger` | 40ms steps | Feature lists (children nth-child delays) |
-| `.animate-pulse-soft` | 2.2s loop | Live interim caption indicator |
+
+| Utility               | Duration         | Use                                       |
+| --------------------- | ---------------- | ----------------------------------------- |
+| `.animate-page-enter` | 400ms fade-in-up | Route changes (`PageStage`)               |
+| `.animate-fade-in-up` | 450ms            | Hero sections                             |
+| `.animate-scale-in`   | 300ms            | Cards/modals appearing                    |
+| `.animate-stagger`    | 40ms steps       | Feature lists (children nth-child delays) |
+| `.animate-pulse-soft` | 2.2s loop        | Live interim caption indicator            |
+
 
 **Do not** add bounce, spin (except loaders), or transitions longer than 500ms for page UI.
 
@@ -139,11 +151,13 @@ Marketing/lobby: `surface-card` class (elevated shadow + border).
 
 ## 8. Page-specific notes
 
-| Page | Shell |
-|---|---|
-| `/` (home) | `AppHeader` + ambient background |
-| `/m/[slug]` lobby/error | `AppHeader` + `surface-card` |
-| `/m/[slug]` in-call | Full-bleed `bg-video-surface`; sidebar uses theme `card` colors |
+
+| Page                    | Shell                                                           |
+| ----------------------- | --------------------------------------------------------------- |
+| `/` (home)              | `AppHeader` + ambient background                                |
+| `/m/[slug]` lobby/error | `AppHeader` + `surface-card`                                    |
+| `/m/[slug]` in-call     | Full-bleed `bg-video-surface`; sidebar uses theme `card` colors |
+
 
 ## 9. Checklist before shipping UI changes
 
@@ -160,3 +174,4 @@ Marketing/lobby: `surface-card` class (elevated shadow + border).
 - Tokens: `frontend/src/app.css`
 - Agent: `agents/design-system.md`
 - Frontend agent: `agents/frontend-engineer.md`
+

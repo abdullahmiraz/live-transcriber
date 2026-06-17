@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { getMeeting, listMessages, type ChatMessage } from '$lib/api';
+	import { requestLocalMedia, summarizeMediaDevices, mediaErrorMessage } from '$lib/media/request-media';
 	import { SignalingClient } from '$lib/realtime/signaling';
 	import { MeshManager } from '$lib/realtime/webrtc';
 	import { SpeechCapture } from '$lib/realtime/speech';
@@ -103,31 +104,14 @@
 	let previewVideoEl: HTMLVideoElement | undefined = $state();
 	let selfId = $state('');
 	let seq = 0;
+	let deviceHint = $state('');
 
-	function mediaErrorMessage(err: unknown): string {
-		const name = err instanceof DOMException ? err.name : '';
-		switch (name) {
-			case 'NotAllowedError':
-			case 'PermissionDeniedError':
-				return 'Camera and microphone access was blocked. Click the lock icon in your browser address bar, allow camera and microphone, then try again.';
-			case 'NotFoundError':
-			case 'DevicesNotFoundError':
-				return 'No camera or microphone was found on this device.';
-			case 'NotReadableError':
-			case 'TrackStartError':
-				return 'Your camera or microphone is in use by another application.';
-			case 'SecurityError':
-				return 'Camera and microphone require a secure connection (HTTPS or localhost).';
-			default:
-				return err instanceof Error ? err.message : 'Could not access camera or microphone.';
-		}
-	}
-
-	async function requestMedia(): Promise<MediaStream> {
-		if (!navigator.mediaDevices?.getUserMedia) {
-			throw new DOMException('Media devices are not available in this browser.', 'NotSupportedError');
-		}
-		return navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+	async function requestMedia() {
+		const result = await requestLocalMedia();
+		camOn = result.hasVideo;
+		micOn = result.hasAudio;
+		if (result.note) toast.info(result.note);
+		return result.stream;
 	}
 
 	function utf8ToBase64(s: string): string {
@@ -221,6 +205,17 @@
 		}
 
 		phase = 'lobby';
+
+		const { cameras, microphones } = await summarizeMediaDevices();
+		if (cameras > 0 || microphones > 0) {
+			const parts: string[] = [];
+			if (microphones > 0) parts.push(`${microphones} microphone${microphones > 1 ? 's' : ''}`);
+			if (cameras > 0) parts.push(`${cameras} camera${cameras > 1 ? 's' : ''}`);
+			deviceHint = `Detected: ${parts.join(', ')}. Click Join to allow access.`;
+		} else {
+			deviceHint =
+				'Device names appear after you allow access. If join fails, check Windows Privacy settings for your browser.';
+		}
 	});
 
 	function joinMeeting() {
@@ -412,6 +407,10 @@
 						<Label for="lobby-name">Your name</Label>
 						<Input id="lobby-name" bind:value={displayName} autocomplete="name" />
 					</div>
+
+					{#if deviceHint}
+						<p class="text-muted-foreground text-xs leading-relaxed">{deviceHint}</p>
+					{/if}
 
 					{#if mediaError}
 						<p class="text-destructive rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-relaxed">
