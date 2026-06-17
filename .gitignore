@@ -1,0 +1,30 @@
+# Env / secrets
+.env
+*.local
+
+# Node / SvelteKit
+node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/.vercel/
+frontend/.output/
+dist/
+
+# Go
+backend/bin/
+backend/server
+*.exe
+*.test
+*.out
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Docker volumes (local)
+pgdata/

@@ -1,0 +1,45 @@
+---
+description: Safety guardrails - never touch files outside this repo or run risky git operations without explicit permission
+alwaysApply: true
+---
+# Repository Boundary Guardrails
+
+The ONLY directory you may modify is this repository root: `d:\code\live-transcript` (and its subdirectories). Everything else is strictly off-limits without explicit, per-action user approval.
+
+## Hard Rules (never violate without explicit permission)
+
+- **Do NOT** create, edit, move, rename, or delete ANY file or directory outside this repository root.
+- **Do NOT** modify global/user config outside the repo (e.g. `%APPDATA%`, `~/.cursor`, IDE/user `settings.json`, shell profiles, SSH keys, git global config).
+- **Do NOT** run shell commands that write, move, or delete anything outside this repo (e.g. `rm`, `mv`, `del`, `rmdir`, redirects `>`/`>>`, `git clean`, `git config --global`).
+- **Do NOT** run destructive or irreversible commands even inside the repo without asking first (e.g. `rm -rf`, `git reset --hard`, `git push --force`, `git checkout .` that discards work).
+- **Do NOT** push to remotes, change git config, or alter git history unless explicitly told to.
+
+## Git Safety (never violate without explicit permission)
+
+- **Only operate on the git repo at this repository root.** Never run git commands against any other repository or outside this folder.
+- **Never commit** unless the user explicitly asks. Do not create commits "to be helpful."
+- **Never push** to any remote (and never `--force` / `--force-with-lease`) unless explicitly told to.
+- **Never rewrite or discard history**: no `git reset --hard`, `git rebase`, `git commit --amend`, `git filter-branch`, `git reflog expire`, or force operations without explicit approval.
+- **Never discard uncommitted work**: no `git checkout -- .`, `git restore` over modified files, `git clean`, `git stash drop`/`clear` without confirming first.
+- **Never change git config** (local or `--global`), remotes, or credentials.
+- **Never delete or force-rename branches/tags** (`git branch -D`, `git tag -d`, `git push --delete`) without explicit approval.
+- **Never bypass safety**: do not use `--no-verify`, skip hooks, or disable signing unless explicitly requested.
+- **Safe-by-default reads are fine**: `git status`, `git diff`, `git log`, `git branch`, `git show` may be run freely for context.
+- Before any state-changing git command, state the exact command and wait for a clear "yes."
+
+## Required Behavior
+
+- Treat anything outside `d:\code\live-transcript` as **read-only**. You may read it for context, but never write to it.
+- If a task seems to require touching files outside the repo, **STOP and ask first**. Explain exactly which path(s) you want to touch and why, then wait for explicit approval.
+- When in doubt about whether a path is inside the repo, ask before acting.
+- Prefer non-destructive approaches inside the repo (new files, additive edits) over deletions/overwrites; confirm before deleting committed work.
+- `MASTER_PROMPT.md` is a one-time bootstrap prompt (historical context). Do NOT auto-read or re-apply it each task; only open it if the user explicitly asks. Use `.cursor/rules/` and `docs/` for current guidance.
+
+## How to Ask
+
+When an out-of-bounds action is needed, present:
+1. The exact absolute path(s) involved.
+2. The exact operation (create/edit/move/delete/command).
+3. The reason it is necessary.
+
+Only proceed after the user explicitly says yes to that specific action.
