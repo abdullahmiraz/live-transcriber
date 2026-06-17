@@ -1,0 +1,35 @@
+{
+  "name": "meeting-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host --port 3000",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node build/index.js",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@internationalized/date": "^3.12.2",
+    "@lucide/svelte": "^1.20.0",
+    "@sveltejs/adapter-node": "^5.2.0",
+    "@sveltejs/kit": "^2.8.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/node": "^25.9.3",
+    "bits-ui": "^2.18.1",
+    "mode-watcher": "^1.1.0",
+    "svelte": "^5.1.0",
+    "svelte-check": "^4.0.0",
+    "svelte-sonner": "^1.1.1",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0",
+    "tailwind-variants": "^3.2.2"
+  }
+}
